@@ -58,21 +58,35 @@ seven sensed axes: six arm joints and the gripper.
 
 ### Electronics and mechanical hardware
 
-| Item | Quantity | Notes |
-| --- | ---: | --- |
-| AS5600 encoder board plus diametric magnet | 7 | Use the magnet supplied with the encoder kit when possible. |
-| 608 bearing | 7 | Standard 8 x 22 x 7 mm bearing. |
-| TCA9548A I2C multiplexer | 1 | Seven of its eight channels are used. |
-| ESP32 development board | 1 | Use the pin assignments in the [root wiring section](../README.md#wiring). |
-| Normally-open momentary push button | 1 | Deadman switch between GPIO 23 and ground. |
-| 7 x 9 cm perfboard | 1 | For the ESP32, mux, and cable connections. |
-| 28 AWG flexible wire | About 5 m each of 4 colors | 3V3, ground, SDA, and SCL. |
-| M3 x 10 mm screws | Buy 80 | The original six-axis build specifies 60; the extra cartridge and adapter flanges need more. |
-| M3 x 16 mm screws | 4 | Clamps the two YAM adapter pieces together. |
-| M3 nuts | 4 | For the four M3 x 16 mm clamp screws. |
-| Rubber band | 1 | Counterbalances elbow droop. |
-| USB data cable | 1 | Powers and programs the ESP32. |
-| Solder and heat-shrink tubing | As needed | Insulate every joint and provide strain relief. |
+Prices were checked in USD on **August 28, 2026** and exclude shipping and
+tax. Marketplace prices and selected variants change frequently, so verify the
+cart total before ordering. Combining the budget items into one marketplace
+order is usually cheaper than paying separate shipping charges.
+
+| Item | Quantity to order | Lowest-priced source found | Faster/reputable alternative | Compatibility notes |
+| --- | ---: | --- | --- | --- |
+| AS5600 encoder board plus diametric magnet | 7 | [AliExpress, about $1.70 each](https://www.aliexpress.us/item/1005008123249732.html) | [Amazon AS5600 module](https://www.amazon.com/dp/B094F8H591) | **Buy the generic 23 x 23 mm module with an included diametric magnet.** Adafruit and Grove boards do not fit the current housing without a CAD change. |
+| 608-2RS bearing, 8 x 22 x 7 mm | 7 | [Value Hobby, 10 pack about $4 when stocked](https://valuehobby.com/608-2rs-10pcs.html) | [DigiKey, $1.24 each with quantity discounts](https://www.digikey.com/en/products/detail/mechatronics-bearing-group/608-2RS-W-CHEVRONSRI2/9608369) | A 10 pack provides three useful spares. 608-ZZ also fits, but 2RS seals handle dust better. |
+| TCA9548A I2C multiplexer | 1 | [AliExpress, about $0.46](https://www.aliexpress.us/item/1005012625811097.html) | [Adafruit, $6.95](https://www.adafruit.com/product/2717) | Must expose all eight mux channels; seven are used. |
+| ESP32 development board | 1 | [AliExpress ESP32-DevKitC, about $4](https://www.aliexpress.us/item/1005006825457876.html) | [Amazon HiLetgo ESP-WROOM-32](https://www.amazon.com/dp/B0718T232Z) | Use the classic ESP32-WROOM-32/DevKitC family with GPIO 18, 19, and 23 exposed. |
+| Normally-open momentary push button | 1 | [Tayda 12 mm panel button, $0.22](https://www.taydaelectronics.com/push-button-switch-momentary-spst-3a-250vac-12mm-green.html) | [Adafruit 16 mm panel button, $0.95](https://www.adafruit.com/product/1505) | It must be normally open and comfortable to hold continuously as a deadman switch. |
+| 7 x 9 cm perfboard | 1 | [ElectroDragon, five-board pack from about $1](https://www.electrodragon.com/product/prototype-board-5cm-x-7cm-holes-copper-solder-pads/) | [Elliott Electronic Supply](https://www.elliottelectronicsupply.com/64-8911.html) | Select **7 x 9 cm**, 2.54 mm pitch. A slightly smaller board is usable if the ESP32 and mux fit. |
+| 28 AWG flexible silicone wire | About 5 m each of 4 colors | [AliExpress five-color wire, from about $3](https://www.aliexpress.us/item/1005011988351450.html) | [Adafruit flexible ribbon cable](https://www.adafruit.com/product/3891) | Select **28 AWG and 5 m per color**; the displayed base price may be for a shorter option. |
+| M3 x 10 mm socket-head screws | 80 required; buy 100 | [Bolt Depot 100 pack, $4.27](https://boltdepot.com/Product-Details?product=6380) | [McMaster-Carr 100 pack, part 91502A104](https://www.mcmaster.com/91502A104) | Select M3 x 0.5 x 10 mm. The extra 20 cover dropped or stripped screws. |
+| M3 x 16 mm socket-head screws | 4 | [Bolt Depot, $0.12 each](https://boltdepot.com/Product-Details?product=13638) | [McMaster-Carr 100 pack, part 91502A107](https://www.mcmaster.com/91502A107) | M3 x 0.5 x 16 mm; these clamp the two YAM adapter pieces. |
+| M3 x 0.5 hex nuts | 4 | [Bolt Depot, $0.05 each](https://boltdepot.com/Product-Details?product=4783) | [McMaster-Carr 100 pack, part 90592A085](https://www.mcmaster.com/90592A085) | Standard 5.5 mm-across-flats DIN 934 nuts. |
+| PLA or PETG filament | 1 kg | [SUNLU PLA, from $10.29](https://store.sunlu.com/collections/fdm-3d-printing) | [Elegoo PLA, $13.99](https://us.elegoo.com/products/pla-filament-1-75mm-colored-1kg) | The complete meshes contain about 752 g of plastic even at 100% infill, so one 1 kg spool is sufficient at the recommended infill. |
+| Rubber band | 1 | Reuse a medium household rubber band | Buy locally | Counterbalances elbow droop; exact tension is selected during assembly. |
+| USB data cable | 1 | Reuse a known data-capable cable | [Adafruit USB-A to Micro-B, $4.95](https://www.adafruit.com/product/2185) | Match the connector on the ESP32 board and avoid charge-only cables. |
+| Solder | About 25 g | Reuse existing electronics solder | [Adafruit 50 g lead-free solder, $12.50](https://www.adafruit.com/product/2473) | Rosin-core electronics solder; do not use plumbing solder or acid flux. |
+| Heat-shrink tubing | About 1 m mixed sizes | [Harbor Freight 120-piece set, $4.99](https://go.harborfreight.com/sku/67530/) | [Adafruit heat-shrink pack, $4.95](https://www.adafruit.com/product/344) | Use on every soldered wire joint and at moving-joint strain-relief points. |
+
+Using the lowest observed item prices, expect roughly **$45 to $60 before shipping,
+tax, and printing-service charges** if a USB cable and soldering tools are
+already available. Ordering everything from fast-shipping US distributors is
+typically closer to $85 to $120. The ranges are estimates rather than quoted
+cart totals because shipping, coupons, and marketplace variants change by
+location.
 
 No Dynamixel servos, U2D2, servo power supply, or Dynamixel frames are needed.
 Those items belong to the active/passive servo GELLO in `gello_mechanical`, not
