@@ -1,6 +1,10 @@
 # Open-source Leader Arm
 
-Open-source, low-cost, 3D-printed leader arm for teleoperating an SO-ARM 
+Open-source, low-cost, 3D-printed leader arm for teleoperating an SO-ARM
+
+> **YAM prototype:** The `yam-encoder-leader` branch includes a seven-channel
+> ESP32 firmware and an in-progress mechanical variant for the six-axis I2RT
+> YAM. See [`yam/README.md`](yam/README.md).
 
 https://github.com/user-attachments/assets/977a0b56-c7d2-4a90-b86a-445dd3963871
 
