@@ -63,7 +63,7 @@ seven sensed axes: six arm joints and the gripper.
 | AS5600 encoder board plus diametric magnet | 7 | Use the magnet supplied with the encoder kit when possible. |
 | 608 bearing | 7 | Standard 8 x 22 x 7 mm bearing. |
 | TCA9548A I2C multiplexer | 1 | Seven of its eight channels are used. |
-| ESP32 development board | 1 | Firmware pin assignments assume the wiring below. |
+| ESP32 development board | 1 | Use the pin assignments in the [root wiring section](../README.md#wiring). |
 | Normally-open momentary push button | 1 | Deadman switch between GPIO 23 and ground. |
 | 7 x 9 cm perfboard | 1 | For the ESP32, mux, and cable connections. |
 | 28 AWG flexible wire | About 5 m each of 4 colors | 3V3, ground, SDA, and SCL. |
@@ -83,6 +83,11 @@ this AS5600 encoder build.
 Print the quantities in this table for one leader. The links point directly to
 every required STL in this branch. The result is **21 unique files and 53
 printed pieces**.
+
+> Do not print only the two files under `yam/cad/generated/stl`; those are the
+> YAM-specific additions. The inherited parts under `cad_files/stl` make up the
+> rest of the arm. You can [download the entire branch as a
+> ZIP](https://github.com/npow/open-source-leader-arm/archive/refs/heads/yam-encoder-leader.zip).
 
 | Subassembly | STL | Quantity |
 | --- | --- | ---: |
