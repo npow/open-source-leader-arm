@@ -3,9 +3,7 @@
 #define MUX_ADDR 0x70
 #define AS5600_ADDR 0x36
 #define N_CH 7
-#define SDA_PIN 18
-#define SCL_PIN 19
-#define DEADMAN_PIN 23
+#define DEADMAN_PIN 0
 #define SAMPLE_HZ 100
 
 #define REG_STATUS 0x0B
@@ -73,8 +71,11 @@ void diagnose() {
 void setup() {
   Serial.begin(115200);
   pinMode(DEADMAN_PIN, INPUT_PULLUP);
-  Wire.begin(SDA_PIN, SCL_PIN);
-  Wire.setClock(400000);
+  // On the QT Py ESP32-S2, Wire's board-default bus is the solder-free
+  // STEMMA-QT connector.  A conservative 100 kHz clock is more tolerant of
+  // the several moving-arm cable runs than fast-mode I2C.
+  Wire.begin();
+  Wire.setClock(100000);
   delay(300);
   diagnose();
 }
