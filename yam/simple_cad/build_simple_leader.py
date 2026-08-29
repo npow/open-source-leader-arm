@@ -1,10 +1,12 @@
-"""Generate the low-part-count, no-solder YAM encoder leader.
+"""Generate the load-bearing, no-solder potentiometer YAM leader.
 
 The design uses one repeated joint architecture.  The stationary side of each
-joint contains a 608 bearing pocket and a push-in carrier for Adafruit's
-STEMMA-QT AS5600 board.  The moving link contains the axle, snap retention
-tabs, and magnet pocket.  Those features are part of the structural links, so
-there are no separate encoder housings, caps, rotors, washers, or fasteners.
+joint contains a 6000-2RS bearing pocket and a snap carrier for a factory-wired
+WH148 potentiometer.  The moving link contains a hollow axle and compliant
+retention/coupling fingers.  The bearing and printed flange carry the arm; the
+potentiometer shaft transmits sensing torque only.  Those features are part of
+the structural links, so there are no separate sensor housings, couplers,
+washers, nuts, or joint screws.
 
 This is deliberately parametric prototype CAD.  Print ``joint_fit_test``
 before committing to the eight full-size structural pieces.
@@ -22,35 +24,43 @@ import cadquery as cq
 Vector3 = Tuple[float, float, float]
 
 # Purchased component dimensions (millimetres).
-BEARING_OD = 22.0
-BEARING_ID = 8.0
-BEARING_WIDTH = 7.0
-MAGNET_DIAMETER = 4.0
-MAGNET_THICKNESS = 2.0
-AS5600_BOARD_LONG = 25.4
-AS5600_BOARD_SHORT = 17.78
-AS5600_BOARD_THICKNESS = 1.6
+BEARING_OD = 26.0
+BEARING_ID = 10.0
+BEARING_WIDTH = 8.0
+POT_BODY_DIAMETER = 17.0
+POT_BODY_THICKNESS = 9.0
+POT_BUSHING_DIAMETER = 7.0
+POT_SHAFT_DIAMETER = 6.0
+POT_SHAFT_PROJECTION = 15.0
+NANO_SHIELD_LONG = 58.0
+NANO_SHIELD_SHORT = 54.0
 
 # Printer-tunable fits.  Defaults target a reasonably calibrated FDM printer.
-BEARING_POCKET_DIAMETER = 22.20
-BEARING_POCKET_DEPTH = 7.15
-AXLE_DIAMETER = 7.80
-SHAFT_CLEARANCE_DIAMETER = 9.20
-MAGNET_POCKET_DIAMETER = 4.15
-MAGNET_POCKET_DEPTH = 2.10
-PCB_EDGE_CLEARANCE = 0.30
+BEARING_POCKET_DIAMETER = 26.20
+BEARING_POCKET_DEPTH = 8.15
+AXLE_DIAMETER = 9.80
+SHAFT_CLEARANCE_DIAMETER = 13.00
+POT_BODY_CLEARANCE = 0.45
+POT_BUSHING_CLEARANCE = 0.35
+POT_SHAFT_SOCKET_DIAMETER = 5.85
+NANO_SHIELD_EDGE_CLEARANCE = 0.60
 
-# Joint envelope and sensor stack.  The AS5600 package projects from the PCB's
-# component face; this stack leaves approximately 1.5-2.0 mm from magnet face
-# to package face, within the sensor manufacturer's 0.5-3 mm guidance.
-JOINT_RADIUS = 15.5
-SOCKET_BODY_DEPTH = 8.0
-PCB_COMPONENT_FACE_X = 16.8
-PCB_BACK_X = PCB_COMPONENT_FACE_X + AS5600_BOARD_THICKNESS
-BACKPLATE_THICKNESS = 2.0
-AXLE_TIP_X = 13.5
+# Joint envelope and sensor stack.  The potentiometer is inserted from the top
+# after the structural axle has snapped through the bearing.  Its shaft then
+# presses into the split socket at the unloaded end of the axle.
+JOINT_RADIUS = 17.5
+SOCKET_BODY_DEPTH = 9.0
+POT_BODY_FRONT_X = 23.5
+POT_BODY_BACK_X = POT_BODY_FRONT_X + POT_BODY_THICKNESS + POT_BODY_CLEARANCE
+POT_HOLDER_BACK_X = POT_BODY_BACK_X + 2.0
+AXLE_TIP_X = POT_BODY_FRONT_X - POT_SHAFT_PROJECTION + 5.0
 FLANGE_THICKNESS = 3.8
-FLANGE_RADIUS = 14.6
+FLANGE_RADIUS = 16.5
+STOP_RADIUS = 13.1
+STOP_PIN_RADIUS = 1.25
+STOP_GROOVE_INNER_RADIUS = 11.25
+STOP_GROOVE_OUTER_RADIUS = 14.95
+STOP_GROOVE_DEPTH = 2.4
 
 BEAM_RADIUS = 6.5
 NECK_LENGTH = 25.0
@@ -59,16 +69,28 @@ NECK_LENGTH = 25.0
 # means the link lengths do not affect commanded follower angles.  The axis
 # order matches YAM: Z, Y, Y, Y, Z, X, followed by the gripper input on Y.
 JOINTS: Mapping[str, Tuple[Vector3, Vector3]] = {
-    # J1 points downward so its stationary sensor stack lives below the
-    # rotating flange; the moving link exits above the base and can sweep the
-    # full yaw range without hitting a support ring.
-    "j1": ((35.0, 0.0, 40.0), (0.0, 0.0, -1.0)),
-    "j2": ((65.0, 0.0, 75.0), (0.0, 1.0, 0.0)),
-    "j3": ((65.0, 0.0, 235.0), (0.0, 1.0, 0.0)),
-    "j4": ((65.0, 0.0, 390.0), (0.0, 1.0, 0.0)),
-    "j5": ((25.0, 0.0, 430.0), (0.0, 0.0, 1.0)),
-    "j6": ((-15.0, 0.0, 475.0), (1.0, 0.0, 0.0)),
-    "j7": ((-15.0, 0.0, 530.0), (0.0, 1.0, 0.0)),
+    # J1 points upward so its cable exits near the mid-arm controller.  The
+    # moving flange and link remain below the stationary sensor stack.
+    "j1": ((35.0, 0.0, 40.0), (0.0, 0.0, 1.0)),
+    "j2": ((80.0, 0.0, 90.0), (0.0, 1.0, 0.0)),
+    "j3": ((80.0, 0.0, 175.0), (0.0, 1.0, 0.0)),
+    "j4": ((80.0, 0.0, 260.0), (0.0, 1.0, 0.0)),
+    "j5": ((25.0, 0.0, 300.0), (0.0, 0.0, 1.0)),
+    "j6": ((-35.0, 0.0, 340.0), (1.0, 0.0, 0.0)),
+    "j7": ((-35.0, 0.0, 395.0), (0.0, 1.0, 0.0)),
+}
+
+# Physical leader stops in degrees.  J1 deliberately uses 280 degrees of the
+# nominal 300-degree potentiometer and is scaled 325/280 in host software.
+# Every other arm axis fits inside the pot travel without scaling.
+JOINT_LIMITS_DEG: Mapping[str, Tuple[float, float]] = {
+    "j1": (-140.0, 140.0),
+    "j2": (-105.0, 105.0),
+    "j3": (-105.0, 105.0),
+    "j4": (-90.0, 90.0),
+    "j5": (-90.0, 90.0),
+    "j6": (-120.0, 120.0),
+    "j7": (0.0, 45.0),
 }
 
 
@@ -133,8 +155,39 @@ def _orient_x(part: cq.Workplane, axis: Vector3, center: Vector3) -> cq.Workplan
     return oriented.translate(center)
 
 
+def _annular_sector_x(
+    inner_radius: float,
+    outer_radius: float,
+    start_degrees: float,
+    end_degrees: float,
+    depth: float,
+    x_start: float,
+) -> cq.Workplane:
+    """Extrude a sampled annular sector along +X."""
+
+    if end_degrees <= start_degrees:
+        raise ValueError("annular sector end must follow start")
+    sweep = end_degrees - start_degrees
+    samples = max(8, int(math.ceil(sweep / 4.0)))
+    angles = [
+        math.radians(start_degrees + sweep * index / samples)
+        for index in range(samples + 1)
+    ]
+    outer = [(outer_radius * math.cos(a), outer_radius * math.sin(a)) for a in angles]
+    inner = [
+        (inner_radius * math.cos(a), inner_radius * math.sin(a))
+        for a in reversed(angles)
+    ]
+    return (
+        cq.Workplane("YZ", origin=(x_start, 0.0, 0.0))
+        .polyline(outer + inner)
+        .close()
+        .extrude(depth)
+    )
+
+
 def build_socket() -> cq.Workplane:
-    """Build one bearing pocket and tool-free AS5600 board carrier."""
+    """Build one bearing pocket and top-loading potentiometer carrier."""
 
     socket = _cylinder_x(JOINT_RADIUS, SOCKET_BODY_DEPTH, 0.0)
     socket = socket.cut(
@@ -143,85 +196,113 @@ def build_socket() -> cq.Workplane:
     socket = socket.cut(
         _cylinder_x(
             SHAFT_CLEARANCE_DIAMETER / 2.0,
-            PCB_COMPONENT_FACE_X - BEARING_POCKET_DEPTH,
+            SOCKET_BODY_DEPTH - BEARING_POCKET_DEPTH + 0.02,
             BEARING_POCKET_DEPTH,
         )
     )
 
-    board_long = AS5600_BOARD_LONG + PCB_EDGE_CLEARANCE * 2.0
-    board_short = AS5600_BOARD_SHORT + PCB_EDGE_CLEARANCE * 2.0
-    backplate = _box(
-        BACKPLATE_THICKNESS,
-        board_long + 3.0,
-        board_short + 3.0,
-        (PCB_BACK_X + BACKPLATE_THICKNESS / 2.0, 0.0, 0.0),
-    )
-    # A generous centre window prevents the PCB's rear pads from rubbing and
-    # makes it possible to push the board back out with a fingertip.
-    backplate = backplate.cut(
-        _box(BACKPLATE_THICKNESS + 0.2, 15.0, 10.0, (PCB_BACK_X + 1.0, 0.0, 0.0))
-    )
-    socket = socket.union(backplate)
+    # A stationary pin runs in a recessed arc in the moving flange.  The arc
+    # ends, rather than the potentiometer's delicate internal stops, absorb an
+    # accidental over-rotation.
+    stop_pin = _cylinder_x(
+        STOP_PIN_RADIUS,
+        STOP_GROOVE_DEPTH + 0.8,
+        -STOP_GROOVE_DEPTH,
+    ).translate((0.0, STOP_RADIUS, 0.0))
+    socket = socket.union(stop_pin)
 
-    # The bottom bridge connects the PCB carrier to the bearing body and acts
-    # as a positive stop.  The top remains open so the populated board can be
-    # slid down into the carrier after the axle has been snapped in.
-    bridge_z = board_short / 2.0 + 1.35
-    bridge_length_x = PCB_BACK_X + BACKPLATE_THICKNESS - SOCKET_BODY_DEPTH
+    body_cavity = POT_BODY_DIAMETER + POT_BODY_CLEARANCE
+    holder_width = body_cavity + 3.6
+    holder_height = body_cavity + 3.6
+    holder_mid_x = (POT_BODY_FRONT_X + POT_HOLDER_BACK_X) / 2.0
+    holder_length = POT_HOLDER_BACK_X - POT_BODY_FRONT_X
+
+    # Bottom and side rails form an open-top cradle.  The round body drops in
+    # after the joint is assembled; the factory-wired rear terminals remain
+    # accessible through the large U-shaped back opening.
     socket = socket.union(
+        _box(holder_length, holder_width, 2.4, (holder_mid_x, 0.0, -holder_height / 2.0))
+    )
+    for y_sign in (-1.0, 1.0):
+        socket = socket.union(
+            _box(
+                holder_length,
+                2.0,
+                holder_height,
+                (holder_mid_x, y_sign * holder_width / 2.0, 0.0),
+            )
+        )
+        # The side walls flex just enough for these lips to retain the body.
+        socket = socket.union(
+            _box(
+                holder_length - 1.0,
+                1.8,
+                1.2,
+                (
+                    holder_mid_x + 0.5,
+                    y_sign * (body_cavity / 2.0 - 0.25),
+                    body_cavity / 2.0 + 0.35,
+                ),
+            )
+        )
+
+    # The front U-plate locates the threaded bushing without using its nut.
+    front_plate = _box(
+        2.0,
+        holder_width,
+        holder_height,
+        (POT_BODY_FRONT_X - 1.0, 0.0, 0.0),
+    )
+    bushing_slot = _cylinder_x(
+        (POT_BUSHING_DIAMETER + POT_BUSHING_CLEARANCE) / 2.0,
+        2.2,
+        POT_BODY_FRONT_X - 2.1,
+    ).union(
         _box(
-            bridge_length_x,
-            board_long + 3.0,
-            2.7,
+            2.2,
+            POT_BUSHING_DIAMETER + POT_BUSHING_CLEARANCE,
+            holder_height / 2.0 + 0.2,
             (
-                SOCKET_BODY_DEPTH + bridge_length_x / 2.0,
+                POT_BODY_FRONT_X - 1.0,
                 0.0,
-                -bridge_z,
+                holder_height / 4.0 + 0.1,
             ),
         )
     )
+    socket = socket.union(front_plate.cut(bushing_slot))
 
-    # Four short front rails capture the PCB corners while leaving the Qwiic
-    # connectors at the centres of the +/-Y edges clear.  The board slides
-    # between these lips and the rear plate from the open +Z side.
-    rail_y = board_long / 2.0 + 0.45
-    for y_sign in (-1.0, 1.0):
-        for z in (-6.2, 6.2):
-            rail = _box(
-                PCB_BACK_X + BACKPLATE_THICKNESS - PCB_COMPONENT_FACE_X,
-                1.1,
-                3.0,
-                (
-                    (PCB_COMPONENT_FACE_X + PCB_BACK_X + BACKPLATE_THICKNESS) / 2.0,
-                    y_sign * rail_y,
-                    z,
-                ),
-            )
-            lip = _box(
-                0.9,
-                1.5,
-                3.0,
-                (PCB_COMPONENT_FACE_X - 0.45, y_sign * rail_y, z),
-            )
-            socket = socket.union(rail).union(lip)
+    # A U-shaped rear plate prevents axial motion while leaving the prewired
+    # terminals and cable strain relief unobstructed.
+    rear_plate = _box(
+        2.0,
+        holder_width,
+        holder_height,
+        (POT_HOLDER_BACK_X - 1.0, 0.0, 0.0),
+    )
+    rear_opening = _box(
+        2.2,
+        body_cavity - 4.0,
+        holder_height - 3.0,
+        (POT_HOLDER_BACK_X - 1.0, 0.0, 2.0),
+    )
+    socket = socket.union(rear_plate.cut(rear_opening))
 
-    # Two compliant top latches flex rearward as the board slides down, then
-    # catch its top edge.  They can be released with a small flat screwdriver.
-    top_z = board_short / 2.0 + 0.6
-    for y in (-6.0, 6.0):
-        hook = _box(
-            3.8,
-            4.0,
-            1.2,
-            (PCB_BACK_X + 0.1, y, top_z + 0.6),
+    # A concentric support tube makes the carrier stiff while leaving the full
+    # radial sweep clear for the moving link.  The 13 mm bore surrounds the
+    # 9.8 mm axle/coupling without carrying its load.
+    bridge_length = POT_BODY_FRONT_X - SOCKET_BODY_DEPTH
+    support_tube = _cylinder_x(
+        8.25,
+        bridge_length,
+        SOCKET_BODY_DEPTH,
+    ).cut(
+        _cylinder_x(
+            SHAFT_CLEARANCE_DIAMETER / 2.0,
+            bridge_length + 0.2,
+            SOCKET_BODY_DEPTH - 0.1,
         )
-        lip = _box(
-            0.9,
-            4.0,
-            1.9,
-            (PCB_COMPONENT_FACE_X - 0.45, y, top_z - 0.15),
-        )
-        socket = socket.union(hook).union(lip)
+    )
+    socket = socket.union(support_tube)
 
     return socket.clean()
 
@@ -231,39 +312,75 @@ def _snap_tab(top: bool) -> cq.Workplane:
 
     sign = 1.0 if top else -1.0
     profile = [
-        (6.25, sign * 2.65),
-        (6.25, sign * 3.75),
-        (7.20, sign * 4.35),
-        (10.55, sign * 3.78),
-        (11.25, sign * 2.65),
+        (7.15, sign * 3.20),
+        (7.15, sign * 4.45),
+        (8.45, sign * 5.35),
+        (11.00, sign * 5.30),
+        (11.75, sign * 4.45),
+        (11.75, sign * 3.20),
     ]
     if not top:
         profile.reverse()
     return (
-        # The XZ plane's positive normal points toward -Y.  Starting at
-        # +1.75 mm therefore centres the 3.5 mm extrusion on the axle.
-        cq.Workplane("XZ", origin=(0.0, 1.75, 0.0))
+        # The XZ plane's positive normal points toward -Y.  Starting at +3 mm
+        # therefore centres the 6 mm extrusion on the axle.
+        cq.Workplane("XZ", origin=(0.0, 3.0, 0.0))
         .polyline(profile)
         .close()
-        .extrude(3.5)
+        .extrude(6.0)
     )
 
 
-def build_plug() -> cq.Workplane:
-    """Build the moving flange, printed axle, snap tabs, and magnet pocket."""
+def _stop_groove(lower_degrees: float, upper_degrees: float) -> cq.Workplane:
+    """Return the moving-side clearance swept by the stationary stop pin."""
+
+    # At zero pose the stationary pin is at angle zero.  In the moving frame
+    # it sweeps in the opposite direction as the joint rotates.
+    angular_clearance = 8.0
+    groove_start = -upper_degrees - angular_clearance
+    groove_end = -lower_degrees + angular_clearance
+    return _annular_sector_x(
+        STOP_GROOVE_INNER_RADIUS,
+        STOP_GROOVE_OUTER_RADIUS,
+        groove_start,
+        groove_end,
+        STOP_GROOVE_DEPTH + 0.2,
+        -STOP_GROOVE_DEPTH - 0.1,
+    )
+
+
+def build_plug(lower_degrees: float = -90.0, upper_degrees: float = 90.0) -> cq.Workplane:
+    """Build the moving flange, hollow snap axle, coupling, and hard-stop arc."""
 
     plug = _cylinder_x(FLANGE_RADIUS, FLANGE_THICKNESS, -FLANGE_THICKNESS)
-    plug = plug.union(_cylinder_x(AXLE_DIAMETER / 2.0, 5.85, 0.0))
-    plug = plug.union(_cylinder_x(2.80, AXLE_TIP_X - 5.85, 5.85))
+    plug = plug.union(_cylinder_x(AXLE_DIAMETER / 2.0, AXLE_TIP_X, 0.0))
     plug = plug.union(_snap_tab(top=True)).union(_snap_tab(top=False))
-    magnet_pocket_start = AXLE_TIP_X - MAGNET_POCKET_DEPTH
+
+    # The shaft socket begins behind the bearing, so the load-bearing portion
+    # of the axle remains solid.  A narrow relief slot turns the rear section
+    # into two compliant jaws which grip the pot's 6 mm knurled shaft.
+    shaft_socket_start = BEARING_POCKET_DEPTH + 0.30
     plug = plug.cut(
         _cylinder_x(
-            MAGNET_POCKET_DIAMETER / 2.0,
-            MAGNET_POCKET_DEPTH + 0.02,
-            magnet_pocket_start,
+            POT_SHAFT_SOCKET_DIAMETER / 2.0,
+            AXLE_TIP_X - shaft_socket_start + 0.2,
+            shaft_socket_start,
         )
     )
+    plug = plug.cut(
+        _box(
+            AXLE_TIP_X - shaft_socket_start + 0.4,
+            AXLE_DIAMETER + 1.0,
+            0.85,
+            (
+                shaft_socket_start + (AXLE_TIP_X - shaft_socket_start) / 2.0,
+                0.0,
+                0.0,
+            ),
+        )
+    )
+
+    plug = plug.cut(_stop_groove(lower_degrees, upper_degrees))
     return plug.clean()
 
 
@@ -282,6 +399,7 @@ def _radial_neck(
     center: Vector3,
     axis: Vector3,
     toward: Vector3,
+    length: float = NECK_LENGTH,
 ) -> Tuple[cq.Workplane, Vector3]:
     """Leave a plug radially without entering the stationary socket."""
 
@@ -308,13 +426,13 @@ def _radial_neck(
     )
     neck = (
         cq.Workplane(plane)
-        .center(NECK_LENGTH / 2.0, 0.0)
-        .rect(NECK_LENGTH, BEAM_RADIUS * 2.0)
+        .center(length / 2.0, 0.0)
+        .rect(length, BEAM_RADIUS * 2.0)
         .extrude(FLANGE_THICKNESS)
     )
     waypoint = _v_add(
         _v_sub(center, _v_scale(axis, FLANGE_THICKNESS / 2.0)),
-        _v_scale(radial, NECK_LENGTH),
+        _v_scale(radial, length),
     )
     # Silence type checkers and document the plane's second in-plane vector;
     # CadQuery derives the same vector internally from normal x xDir.
@@ -376,14 +494,25 @@ def _joint_socket(name: str) -> cq.Workplane:
 
 def _joint_plug(name: str) -> cq.Workplane:
     center, axis = JOINTS[name]
-    return _orient_x(build_plug(), axis, center)
+    return _orient_x(build_plug(*JOINT_LIMITS_DEG[name]), axis, center)
+
+
+def _joint_stop_groove(name: str) -> cq.Workplane:
+    center, axis = JOINTS[name]
+    return _orient_x(_stop_groove(*JOINT_LIMITS_DEG[name]), axis, center)
 
 
 def _link(proximal: str, distal: str) -> cq.Workplane:
     proximal_center, proximal_axis = JOINTS[proximal]
     distal_center, distal_axis = JOINTS[distal]
     part = _joint_plug(proximal)
-    neck, waypoint = _radial_neck(proximal_center, proximal_axis, distal_center)
+    proximal_neck_length = 32.0 if proximal == "j1" else NECK_LENGTH
+    neck, waypoint = _radial_neck(
+        proximal_center,
+        proximal_axis,
+        distal_center,
+        length=proximal_neck_length,
+    )
     socket_neck, socket_waypoint = _socket_neck(
         distal_center, distal_axis, proximal_center
     )
@@ -391,47 +520,46 @@ def _link(proximal: str, distal: str) -> cq.Workplane:
     part = part.union(_cylinder_between(waypoint, socket_waypoint, BEAM_RADIUS))
     part = part.union(socket_neck)
     part = part.union(_joint_socket(distal))
+    # The radial neck can overlap the recessed stop arc when the joint points
+    # toward the pin.  Recut the arc after all unions so the stop path remains
+    # clear throughout the advertised range.
+    part = part.cut(_joint_stop_groove(proximal))
     return part.clean()
 
 
 def build_base() -> cq.Workplane:
     joint_center, _ = JOINTS["j1"]
-    base = _box(150.0, 110.0, 8.0, (0.0, 0.0, 4.0))
+    base = _box(110.0, 90.0, 8.0, (0.0, 0.0, 4.0))
     base = base.edges("|Z").fillet(8.0)
-    # Twin columns support the downward-facing J1 socket while keeping the
-    # board's top-loading path and both Qwiic connector ends unobstructed.
-    # Stop below the moving-link beam; 3.5 mm of overlap with the socket body
-    # remains for a strong union.
-    column_height = joint_center[2] - 12.5
-    for y_offset in (-8.0, 8.0):
+    # Twin columns support the upward-facing J1 socket while leaving the axle,
+    # potentiometer insertion path, and rotating link unobstructed.
+    column_height = joint_center[2]
+    for y_offset in (-4.0, 4.0):
         base = base.union(
             _box(
                 6.0,
                 6.0,
                 column_height,
                 (
-                    joint_center[0] - 14.0,
+                    joint_center[0] - 25.0,
                     joint_center[1] + y_offset,
                     8.0 + column_height / 2.0,
                 ),
             )
         )
+        base = base.union(
+            _cylinder_between(
+                (joint_center[0] - 25.0, joint_center[1] + y_offset, 45.0),
+                (joint_center[0] - 15.0, joint_center[1] + y_offset, 45.0),
+                3.0,
+            )
+        )
     base = base.union(_joint_socket("j1"))
-
-    # Open electronics tray: Qwiic mux and QT Py attach with removable foam
-    # tape, so it accepts board revisions without screws, nuts, or a lid.
-    tray_center = (-33.0, 0.0, 9.5)
-    tray_floor = _box(68.0, 50.0, 3.0, tray_center)
-    base = base.union(tray_floor)
-    for y in (-26.0, 26.0):
-        base = base.union(_box(72.0, 2.0, 7.0, (-33.0, y, 11.5)))
-    for x in (-69.0, 3.0):
-        base = base.union(_box(2.0, 54.0, 7.0, (x, 0.0, 11.5)))
 
     # Four ordinary wood screws can secure the base to a board;
     # they drive into the board directly and do not require nuts.
-    for x in (-65.0, 65.0):
-        for y in (-45.0, 45.0):
+    for x in (-47.0, 47.0):
+        for y in (-37.0, 37.0):
             hole = (
                 cq.Workplane("XY", origin=(x, y, -0.1))
                 .circle(2.2)
@@ -444,31 +572,81 @@ def build_base() -> cq.Workplane:
 def build_link_6() -> cq.Workplane:
     part = _link("j6", "j7")
     # Fixed palm grip is integral with link 6.  The separate gripper lever
-    # pivots beside it, giving a simple squeeze input without a return spring.
-    grip_start = (-40.0, 32.0, 546.0)
-    grip_end = (-48.0, 32.0, 622.0)
-    part = part.union(_cylinder_between(grip_start, grip_end, 10.0))
-    part = part.union(_cylinder_between((-29.0, 4.0, 535.0), grip_start, 7.0))
+    # pivots beside it.  The lever's integral PETG leaf bears on the small post
+    # below, returning the gripper to its released/deadman-off position.
+    joint_center, _ = JOINTS["j7"]
+    grip_start = (joint_center[0] - 16.5, 27.0, joint_center[2] + 8.5)
+    grip_end = (joint_center[0] - 21.5, 27.0, joint_center[2] + 62.5)
+    part = part.union(_cylinder_between(grip_start, grip_end, 9.0))
+    palm_root = (joint_center[0] - 16.0, 7.0, joint_center[2])
+    part = part.union(_cylinder_between(palm_root, grip_start, 6.5))
+    spring_x = joint_center[0] + 12.0
+    spring_z = joint_center[2] + 19.5
+    spring_post = _cylinder_between(
+        (spring_x, -5.0, spring_z), (spring_x, 5.0, spring_z), 1.5
+    )
+    spring_post_root = _cylinder_between(
+        (joint_center[0] + 16.0, 3.0, joint_center[2]),
+        (spring_x, 3.0, spring_z),
+        2.0,
+    )
+    part = part.union(spring_post).union(spring_post_root)
     return part.clean()
 
 
-def build_link_2() -> cq.Workplane:
-    part = _link("j2", "j3")
-    # Mid-arm placement keeps every purchased Qwiic lead at 400 mm or less.
-    # The 60 x 42 mm open pad fits SparkFun BOB-16784 (about 54.6 x 35.6 mm)
-    # and deliberately uses removable foam tape instead of nuts or standoffs.
-    mux_pad = _box(60.0, 3.0, 42.0, (90.0, 0.0, 155.0))
-    return part.union(mux_pad).clean()
+def build_link_3() -> cq.Workplane:
+    part = _link("j3", "j4")
+    # The controller sits near the chain midpoint so all seven factory 200 mm
+    # sensor leads reach it.  Four low corner clips retain the standard Nano
+    # I/O shield without tape, screws, nuts, or a separate enclosure.
+    tray_long = NANO_SHIELD_LONG + NANO_SHIELD_EDGE_CLEARANCE * 2.0
+    tray_short = NANO_SHIELD_SHORT + NANO_SHIELD_EDGE_CLEARANCE * 2.0
+    tray_center = (30.0, 45.0, 225.0)
+    part = part.union(_box(tray_long + 4.0, 2.4, tray_short + 4.0, tray_center))
+    # Two short side standoffs attach the tray to link 3 while leaving the
+    # neighbouring links' swept volume clear at the assembly zero pose.
+    for z in (208.0, 225.0):
+        part = part.union(_cylinder_between((80.0, 0.0, z), (60.0, 45.0, z), 3.0))
+    for x_sign in (-1.0, 1.0):
+        for z_sign in (-1.0, 1.0):
+            x = tray_center[0] + x_sign * (tray_long / 2.0 + 1.0)
+            z = tray_center[2] + z_sign * (tray_short / 2.0 + 1.0)
+            post = _box(3.0, 7.0, 8.0, (x, tray_center[1] + 2.3, z))
+            lip = _box(
+                5.0,
+                1.4,
+                5.0,
+                (x - x_sign * 1.0, tray_center[1] + 5.9, z - z_sign * 1.0),
+            )
+            part = part.union(post).union(lip)
+    return part.clean()
 
 
 def build_gripper_lever() -> cq.Workplane:
     center, axis = JOINTS["j7"]
-    lever_target = (-9.0, -5.5, 590.0)
+    lever_target = (center[0] + 5.5, -5.5, center[2] + 38.5)
     part = _joint_plug("j7")
     neck, waypoint = _radial_neck(center, axis, lever_target)
     part = part.union(neck)
     part = part.union(_cylinder_between(waypoint, lever_target, 5.0))
-    part = part.union(_cylinder_between(lever_target, (-17.0, -5.5, 610.0), 6.5))
+    lever_end = (center[0] + 1.5, -5.5, center[2] + 57.5)
+    part = part.union(_cylinder_between(lever_target, lever_end, 6.5))
+    # A thin radial leaf reaches the fixed post on link 6 after a few degrees
+    # of squeeze.  It bends in-plane and returns the lever when released.
+    spring_leaf = _box(
+        1.2,
+        5.0,
+        21.0,
+        (center[0] + 0.6, -5.5, center[2] + 10.3),
+    )
+    spring_tip = _box(
+        9.2,
+        5.0,
+        1.2,
+        (center[0] + 5.2, -5.5, center[2] + 19.0),
+    )
+    part = part.union(spring_leaf).union(spring_tip)
+    part = part.cut(_joint_stop_groove("j7"))
     return part.clean()
 
 
@@ -490,8 +668,8 @@ def build_parts() -> Dict[str, cq.Workplane]:
     return {
         "simple_base": build_base(),
         "simple_link_1": _link("j1", "j2"),
-        "simple_link_2": build_link_2(),
-        "simple_link_3": _link("j3", "j4"),
+        "simple_link_2": _link("j2", "j3"),
+        "simple_link_3": build_link_3(),
         "simple_link_4": _link("j4", "j5"),
         "simple_link_5": _link("j5", "j6"),
         "simple_link_6": build_link_6(),

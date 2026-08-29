@@ -1,188 +1,213 @@
-# Simple YAM Encoder Leader
+# Simple no-solder YAM leader
 
-This is the low-cost, low-assembly YAM leader. It keeps seven inexpensive
-AS5600 magnetic encoders, but removes the hand-wired perfboard and the repeated
-four-piece encoder cartridges from the first prototype.
+This branch is the inexpensive version: seven factory-wired linear
+potentiometers, seven bearings, a pre-soldered Arduino Nano, one plug-in I/O
+shield, and eight printed structural pieces. There are no magnets, encoder
+boards, muxes, cable kits, hex nuts, joint screws, or soldered connections.
+The gripper's printed PETG leaf is both its return spring and the firmware
+deadman input.
 
-The complete arm is now:
+This is a generated and collision-checked **first-print prototype**, not a
+physically qualified product. Print the joint coupon and verify the sourced
+parts before printing the arm.
 
-- **8 final printed pieces**, down from 53;
-- **no soldering**: every electrical connection is Qwiic/STEMMA QT;
-- **no nuts, joint screws, washers, separate rotors, caps, or cable holders**;
-- **no return spring or rubber band**; and
-- about **$78 in purchased parts**, or about **$88 if a new PETG spool is
-  needed**, before shipping and tax.
+## Cost delivered to 94114
 
-This remains first-print prototype hardware. Print and check the small joint
-coupon before ordering seven of every component or printing the full arm.
+Prices and listed shipping were rechecked on **August 28, 2026**. The four
+core lines below total **$44.98**, each currently shows **free US shipping**,
+and the estimated San Francisco total is **$48.86** after
+[8.625% sales tax](https://www.cdtfa.ca.gov/taxes-and-fees/rates.aspx).
+That excludes filament and a USB cable if you do not already have them.
 
-## What changed mechanically
+The estimate is deliberately a reproducible cart, not an optimistic sum of
+unit prices from overseas marketplaces. Prices, stock, tax, and delivery dates
+can change at checkout.
 
-Every structural link now contains both sides of the repeated joint:
+## Complete BOM
 
-- the parent side has a press-fit 608 bearing pocket and a top-loading snap
-  carrier sized for Adafruit AS5600 board 6357;
-- the child side has the 8 mm axle, two compliant retention barbs, and a 4 x
-  2 mm magnet pocket printed into the link; and
-- the board slides into the only open end of its carrier and clicks under two
-  printed latches. Both Qwiic sockets remain exposed.
+| Buy this exact type | Qty used | Package price | Shipping shown | Why this one |
+| --- | ---: | ---: | ---: | --- |
+| [Uxcell WH148 B10K linear pots, 20 cm factory wire, 3-pin JST-XH2.54, 10-pack](https://www.walmart.com/ip/17169514309) | 7 | $19.34 sale ($20.35 regular) | Free | Three spares; nominal 17 mm body, 7 mm bushing, 6 mm knurled shaft. Do not substitute switched 5-pin or logarithmic/audio-taper pots. |
+| [6000-2RS sealed bearings, 10×26×8 mm, 10-pack](https://www.ebay.com/itm/301956681716) | 7 | $11.25 | Free | Three spares. The larger 10 mm bore leaves a printable load-bearing wall around the 6 mm pot coupling. **608 bearings do not fit this design.** |
+| [Classic ATmega328P Nano, USB-C, headers already soldered](https://www.ebay.com/itm/205884861373) | 1 | $10.99 | Free | The listing must say **soldered**. A bare-header Nano defeats the no-solder goal. |
+| [Nano I/O expansion sensor shield](https://www.ebay.com/itm/201247537349) | 1 | $3.40 | Free | Match the pictured 58×54 mm red Nano shield with servo-style signal/5V/ground header rows. The seller's title mentions UNO, but the pictured socket is for a Nano. |
+| PETG filament | about 500 g | Existing spool, or local purchase | — | PETG is required for the axle snaps, pot clips, and gripper flexure. Do not use brittle silk PLA. |
+| USB-C **data** cable | 1 | Reuse | — | Charge-only cables cannot upload firmware or stream positions. |
+| #8 or 4 mm wood screws | 4 optional | Reuse/buy locally | — | Only for fastening the base to a board; they drive into wood, so no nuts are used. A table clamp also works. |
 
-The axle barbs compress through the bearing and expand behind it, replacing a
-screw, nut, washer, and retaining clip. The link proportions are compact rather
-than 1:1 with the follower; teleoperation maps measured joint angles, so link
-length does not change the commanded YAM joint angles.
+The bearing listing is the price choice, not the design limit.
+[DigiKey's 6000-2RS data](https://www.digikey.com/en/products/detail/mechatronics-bearing-group/6000-2RS/9608370)
+lists roughly 790 lbf dynamic and 440 lbf static bearing ratings.
+The printed PETG, layer adhesion, snap axle, base, and desk attachment are much
+weaker and remain unqualified. This leader is intended only for hand input; do
+not hang a payload from it or infer a safe working load from the bearing rating.
+
+### Connector check before ordering multiples
+
+The pot listing calls its plug JST-XH2.54 while the shield uses ordinary
+2.54 mm male headers. That unshrouded combination normally presses together,
+but neither listing guarantees a keyed system-level mate. Buy the listed pack
+only if you are comfortable checking one connector. The crimp contacts can be
+reordered in their plastic housing with a small pick if the wire order differs;
+that does not require cutting or soldering.
+
+Never trust wire colors. The pot's centre/wiper wire goes to `S`, one outer wire
+to `V`, and the other outer wire to `G`. Identify the wiper with a multimeter:
+the two outer wires stay near 10 kΩ while resistance from either outer wire to
+the wiper changes as the shaft turns. Swapping only `V` and `G` reverses that
+joint and is also correctable with `joint_signs` in software.
 
 ## Complete print list
 
-Download the whole branch as a [ZIP](https://github.com/npow/open-source-leader-arm/archive/refs/heads/yam-encoder-leader.zip),
-then use the STLs under `yam/simple_cad/generated/stl`.
+Download this branch as a [ZIP](https://github.com/npow/open-source-leader-arm/archive/refs/heads/yam-encoder-leader.zip)
+and use only `yam/simple_cad/generated/stl`.
 
-### Print this first (not part of the final arm)
+Print this inexpensive coupon first; it is not part of the final arm:
 
-| STL | Quantity | Purpose |
+| STL | Qty | Checks |
 | --- | ---: | --- |
-| [`joint_fit_test.stl`](simple_cad/generated/stl/joint_fit_test.stl) | 1 | Checks the bearing, axle snap, magnet, and AS5600 carrier fits with little filament. The STL contains a separate socket and plug. |
+| [`joint_fit_test.stl`](simple_cad/generated/stl/joint_fit_test.stl) | 1 | 6000 bearing pocket, 9.8 mm snap axle, 6 mm split shaft socket, and WH148 body/bushing carrier. The socket and plug are two separate solids in one STL. |
 
-### Final arm: eight pieces total
+The final arm is exactly these eight prints, one of each:
 
-| Order | STL | Quantity | Contains |
-| ---: | --- | ---: | --- |
-| 1 | [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl) | 1 | J1 bearing/sensor socket and controller tray |
-| 2 | [`simple_link_1.stl`](simple_cad/generated/stl/simple_link_1.stl) | 1 | J1 snap axle and J2 socket |
-| 3 | [`simple_link_2.stl`](simple_cad/generated/stl/simple_link_2.stl) | 1 | J2 axle, J3 socket, and mid-arm Qwiic mux pad |
-| 4 | [`simple_link_3.stl`](simple_cad/generated/stl/simple_link_3.stl) | 1 | J3 axle and J4 socket |
-| 5 | [`simple_link_4.stl`](simple_cad/generated/stl/simple_link_4.stl) | 1 | J4 axle and J5 socket |
-| 6 | [`simple_link_5.stl`](simple_cad/generated/stl/simple_link_5.stl) | 1 | J5 axle and J6 socket |
-| 7 | [`simple_link_6.stl`](simple_cad/generated/stl/simple_link_6.stl) | 1 | J6 axle, gripper-input socket, and fixed palm grip |
-| 8 | [`simple_gripper_lever.stl`](simple_cad/generated/stl/simple_gripper_lever.stl) | 1 | Gripper-input axle and squeeze lever |
+| Order | STL | Integral features |
+| ---: | --- | --- |
+| 1 | [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl) | J1 bearing/pot socket and four optional mounting holes |
+| 2 | [`simple_link_1.stl`](simple_cad/generated/stl/simple_link_1.stl) | J1 axle/coupling and J2 socket |
+| 3 | [`simple_link_2.stl`](simple_cad/generated/stl/simple_link_2.stl) | J2 axle/coupling and J3 socket |
+| 4 | [`simple_link_3.stl`](simple_cad/generated/stl/simple_link_3.stl) | J3 axle, J4 socket, and snap tray for the 58×54 mm Nano shield |
+| 5 | [`simple_link_4.stl`](simple_cad/generated/stl/simple_link_4.stl) | J4 axle/coupling and J5 socket |
+| 6 | [`simple_link_5.stl`](simple_cad/generated/stl/simple_link_5.stl) | J5 axle/coupling and J6 socket |
+| 7 | [`simple_link_6.stl`](simple_cad/generated/stl/simple_link_6.stl) | J6 axle, gripper socket, fixed palm, and flexure post |
+| 8 | [`simple_gripper_lever.stl`](simple_cad/generated/stl/simple_gripper_lever.stl) | Gripper axle, squeeze lever, and integral PETG return leaf |
 
-Do **not** print the old files under `cad_files/stl` for this version. They are
-retained only so the upstream SO-ARM design and the earlier YAM prototype remain
-available.
+Do not print the old files under `cad_files/stl`; those belong to the upstream
+SO-ARM design. Editable STEP files are next to the STLs under
+`simple_cad/generated/step`.
 
 ### Print settings
 
-- PETG is required for the integral axle barbs and PCB latches. PLA can crack
-  when those features flex.
-- 0.2 mm layers, four walls, five top/bottom layers, and 20-25% gyroid infill.
-- The generated STLs put the proximal axle in its strongest practical print
-  orientation. Enable organic/tree supports from the build plate where the
-  slicer identifies an unsupported sensor carrier.
-- Use 0.2 mm first-layer elephant-foot compensation if available; an enlarged
-  axle base can make the first snap unnecessarily hard.
-- One 1 kg spool is ample for the coupon and final arm.
+- PETG, 0.20 mm layer height, five walls, six top/bottom layers, and 25% gyroid.
+- Use the orientation already stored in each STL. Do not prioritize surface
+  finish over the exported axle orientation.
+- Enable organic/tree supports from the build plate where your slicer detects
+  the open pot carriers or controller clips.
+- Use about 0.20 mm elephant-foot compensation if available.
+- Do not drill or aggressively sand the axle. Tune the fit constants and
+  reprint the coupon instead.
 
-## Complete no-solder BOM
+## How the inexpensive joint stays load-bearing
 
-Prices were checked in USD on **August 28, 2026** and exclude shipping and tax.
-The low-price column minimizes line-item cost; the alternative can be cheaper
-overall when it consolidates shipping. Check the exact variant in every cart.
+The parent link holds the **outer race** of a 6000-2RS bearing. The child is one
+continuous printed part: a 9.8 mm axle passes through the 10 mm inner race and
+snaps behind it, while its rear 5 mm is hollow and split to grip the pot shaft.
+The bearing and the printed flange carry bending and radial load. The pot shaft
+transmits sensing torque only; the pot body clips into a stationary cradle and
+is not used as an axle.
 
-| Item | Buy | Quantity | Observed price | Exact requirement |
-| --- | --- | ---: | ---: | --- |
-| Plug-in AS5600 sensor | [Adafruit 6357](https://www.adafruit.com/product/6357) | 7 | $5.95 each / $41.65 | Use this **25.4 x 17.78 mm** STEMMA-QT board. Generic 23 x 23 mm boards do not fit. No header soldering is used. |
-| Qwiic 8-channel mux | [SparkFun BOB-16784](https://www.sparkfun.com/sparkfun-qwiic-mux-breakout-8-channel-tca9548a.html) | 1 | $6.95 | Must be the assembled revision with ten Qwiic sockets: main in/pass-through plus channels 0-7. |
-| USB controller with Qwiic | [Adafruit QT Py ESP32-S2, product 5325](https://www.adafruit.com/product/5325) | 1 | $12.50 | Use the ESP32-S2 version with USB-C, STEMMA QT, and the GPIO 0 BOOT button. |
-| Qwiic cable, 100 mm | [Adafruit cable 4399, select 100 mm](https://www.adafruit.com/product/4399) | 2 | $0.95 each / $1.90 | Mux to J2 and J3. JST-SH 4-pin at both ends. |
-| Qwiic cable, 200 mm | [Adafruit cable 4399, select 200 mm](https://www.adafruit.com/product/4399) | 1 | $1.25 | Mux to J1. |
-| Qwiic cable, 300 mm | [Adafruit cable 4399, select 300 mm](https://www.adafruit.com/product/4399) | 3 | $1.25 each / $3.75 | Controller to mux, then mux to J4 and J5. |
-| Qwiic cable, 400 mm | [Adafruit cable 4399, select 400 mm](https://www.adafruit.com/product/4399) | 2 | $1.50 each / $3.00 | Mux to J6 and gripper input. |
-| 608-2RS bearing, 8 x 22 x 7 mm | [Value Hobby 10-pack](https://valuehobby.com/608-2rs-10pcs.html) | 1 pack | $4.00 | Seven are used; three are spares. [DigiKey singles](https://www.digikey.com/en/products/detail/mechatronics-bearing-group/608-2RS-W-CHEVRONSRI2/9608369) were $1.24 each if the budget pack is unavailable. |
-| Diametric magnet, 4 x 2 mm | [MagnetDD MD2685](https://www.magnetdd.com/index.php?main_page=product_info&products_id=2715) | 10 | 7.25 THB each; about $2.25 for 10 before shipping | It must be **diametrically**, not axially, magnetized. A US-stock bulk alternative is the [BuyNeoMagnets 100-pack](https://www.buyneomagnets.com/p/4mm-x-2mm-diametrically-magnetized-disc-magnet-neodymium-round-magnets-n35-rare-earth-radial-magnets-100-pack/) at $14.59. |
-| PETG filament | [SUNLU PETG](https://store.sunlu.com/collections/fdm-3d-printing) or an existing spool | 1 kg | about $10-15 | PETG is important for the printed snap tabs. |
-| Thin removable foam mounting tape | Reuse or buy locally | about 100 mm | about $2 | Attaches the QT Py to the base tray and mux to the link-2 pad. No standoffs or nuts. |
-| USB-C data cable | Reuse a known data cable | 1 | $0 | Charge-only cables will not work. |
-| #8 or 4 mm wood screws | Buy locally; optional | 4 | about $1 | Only needed to fasten the base to a scrap board. They drive into the board directly; no nuts are used. A table clamp also works. |
-
-The listed core electronics, cables, bearings, and budget magnets total about
-**$78**. Add roughly **$10** if a PETG spool must be purchased. The original
-soldered version could be built for $45-60, so the roughly $20-30 difference is
-the cost of factory-assembled sensor boards and terminated cables—not expensive
-Dynamixel servos. It remains far below a roughly $300 servo GELLO build.
-
-## Tool-free wiring
-
-The AS5600 has a fixed I2C address, so seven of them cannot share one literal
-daisy chain. BOB-16784 gives each sensor an isolated plug-in branch; assembly is
-still just clicking pre-terminated cables into labeled sockets.
-
-1. Put the QT Py in the base tray with its USB-C and GPIO 0 buttons accessible.
-2. Put the mux on the flat pad on `simple_link_2`.
-3. Connect QT Py STEMMA QT to either mux **Main** socket with the 300 mm cable.
-4. Connect mux channels 0-6 to the matching joints below. Leave channel 7 open.
-
-| Mux channel | Input | Suggested cable |
-| ---: | --- | ---: |
-| 0 | J1 / base yaw | 200 mm |
-| 1 | J2 / shoulder | 100 mm |
-| 2 | J3 / elbow | 100 mm |
-| 3 | J4 / wrist pitch | 300 mm |
-| 4 | J5 / wrist yaw | 300 mm |
-| 5 | J6 / wrist roll | 400 mm |
-| 6 | gripper squeeze | 400 mm |
-
-Route each cable with a loose service loop at moving joints. Do not pull a cable
-tight across a rotation axis. Small pieces of painter's tape are adequate for
-the first bench test; add permanent printed cable clips only after the motion
-test confirms where they are needed.
+A printed pin and recessed arc stop the joint before the pot's internal end
+stops. J1 uses a protected 280° leader sweep and software scales it to YAM's
+325° range. J2/J3 use 210°, J4/J5 180°, and J6 240°; all stay within the
+nominal 300° electrical travel.
 
 ## Mechanical assembly
 
-1. Print `joint_fit_test`. Confirm a bearing seats fully, the axle turns without
-   binding, both barbs click behind the bearing, a magnet sits flush in the
-   4.15 mm pocket, and an Adafruit 6357 board slides down the carrier and
-   latches. Adjust the constants at the top of
-   [`build_simple_leader.py`](simple_cad/build_simple_leader.py) for the printer
-   if any fit is wrong, then regenerate.
-2. Print the eight final parts. Clean supports and elephant foot from every
-   bearing pocket and axle, but do not sand the flexible barbs thin.
-3. Press one 4 x 2 mm diametric magnet into every moving axle: links 1-6 and the
-   gripper lever. The flat magnet face must finish flush with the axle tip.
-4. Press one 608 bearing fully into every stationary socket: the base and links
-   1-6.
-5. Starting at J1, align a moving axle with its parent bearing and press straight
-   until both barbs click behind the inner race. Do not twist during insertion.
-6. At each assembled joint, slide an AS5600 board into the carrier's open end,
-   with the populated/chip side facing the magnet. Push until both top latches
-   catch the board edge.
-7. Attach the QT Py and mux with removable foam tape, plug in the eight cables,
-   and verify that every joint rotates freely without tugging a connector.
+1. Print the coupon. Confirm the bearing seats fully, the axle rotates without
+   binding, both snap shoulders catch behind the inner race, the remaining
+   radial wall is intact, and the pot body/bushing clip into the carrier.
+2. If a fit is wrong, change only the printer-clearance constants documented in
+   [`simple_cad/README.md`](simple_cad/README.md), regenerate, and print another
+   coupon. Do not scale an STL in the slicer.
+3. Print the eight final pieces. Remove supports and elephant foot without
+   thinning the axle jaws, bearing stop shoulder, controller clips, or flexure.
+4. Press one bearing completely into each stationary socket: the base and
+   links 1 through 6. Press on the **outer race**, not through the seals.
+5. Starting at J1, push the child axle straight through its parent bearing until
+   both integral shoulders click behind the inner race. Repeat through J7.
+6. Before coupling each pot, move the joint to the middle of its printed travel
+   (leave the gripper fully open), connect the electronics temporarily, and
+   turn the loose pot gently to about raw count 512.
+7. Angle the pot over its open carrier, push its shaft axially into the split
+   socket, then lower the round body and threaded bushing into their clips. The
+   included metal nut, washer, and knob are not used.
+8. Move each joint slowly to both printed stops. The raw value must remain
+   between about 20 and 1000 and the pot body must not twist in its carrier.
+9. Snap the Nano shield onto link 3, then plug the soldered Nano into the shield
+   with every pin aligned. A one-row offset can destroy the board.
 
-Disassembly is possible but not intended to be frequent: remove the sensor
-board, squeeze both axle barbs inward through the carrier window, and pull the
-joint straight apart.
+The snap axle is serviceable but not meant for frequent disassembly. To remove
+a joint, remove the pot first, squeeze both axle shoulders through the carrier
+opening, and pull straight while supporting the bearing.
 
-## Firmware and first test
+## Plug-in wiring
 
-Flash [`firmware/yam_encoder_leader/yam_encoder_leader.ino`](../firmware/yam_encoder_leader/yam_encoder_leader.ino)
-with Arduino IDE using **Adafruit QT Py ESP32-S2** as the board. It uses the
-board-default STEMMA-QT bus at 100 kHz and requires no additional Arduino
-library.
+No mux or daisy-chain electronics are required. Plug the seven pot signals into
+the analog rows on the Nano shield:
 
-The QT Py's built-in GPIO 0 / BOOT button is the prototype deadman input. Leave
-it released while powering or flashing the board; after the serial stream has
-started, hold it to enable follower commands. This preserves a no-solder build.
+| Shield input | Joint | Pot position at printed zero |
+| ---: | --- | ---: |
+| A0 | J1 base yaw | about 512 |
+| A1 | J2 shoulder | about 512 |
+| A2 | J3 elbow | about 512 |
+| A3 | J4 wrist pitch | about 512 |
+| A4 | J5 wrist yaw | about 512 |
+| A5 | J6 wrist roll | about 512 |
+| A6 | Gripper/deadman | about 512, fully released |
 
-At boot, the serial monitor at 115200 baud should report `magnet ok` on channels
-0-6. A missing sensor or bad magnet gap is reported as `-1` and the host refuses
-to send another follower command.
+For every connector: wiper to `S`, outer terminals to `V` and `G`. USB powers
+the low-current pots and Nano; do not connect the shield's barrel jack or an
+external servo supply. Route each 20 cm lead directly to the mid-arm tray with
+a loose service loop. The CAD keeps every sensor within the included lead
+length, but verify full motion before pressing cables into permanent clips or
+tape.
 
-Use the `yam-encoder-leader` branch of `npow/gello_software` and start in
-simulation:
+## Firmware and safe first test
+
+Open and upload
+[`firmware/yam_encoder_leader/yam_encoder_leader.ino`](../firmware/yam_encoder_leader/yam_encoder_leader.ino)
+in Arduino IDE:
+
+1. Select **Arduino Nano** and the serial port.
+2. Select **ATmega328P**. If upload fails on a clone, try **ATmega328P (Old
+   Bootloader)**.
+3. Keep the gripper fully released while connecting USB or resetting the Nano.
+   Firmware averages that position as the deadman-off baseline.
+4. Open Serial Monitor at 115200 baud. Every channel should report a raw value
+   in `[4, 1019]`, followed by `YAMP1` data frames.
+
+The firmware reads four ADC samples per channel at 100 Hz. Any open/shorted
+endpoint reading disables the deadman. Squeezing the gripper by about 25 ADC
+counts enables commands; releasing its printed flexure holds the follower at
+its measured pose.
+
+Use the matching `yam-encoder-leader` branch of
+[`npow/gello_software`](https://github.com/npow/gello_software/tree/yam-encoder-leader),
+edit the Nano port in `configs/yam_encoder_sim.yaml`, and test every direction
+in simulation first:
 
 ```bash
 python experiments/launch_yaml.py \
   --left-config-path configs/yam_encoder_sim.yaml
 ```
 
-Hold the leader in its reference pose with the gripper open during initial
-calibration. Encoder direction and zero offsets are software settings; do not
-reprint a link just to reverse an axis.
+Calibrate with the six arm joints in the printed CAD zero pose and the gripper
+open. The configuration maps that neutral leader pose to the midpoint of each
+YAM joint range. If an axis moves backward, flip its `joint_signs` entry; do
+not swap live wires or reprint the link. Only after direction, limits,
+disconnect handling, rate limits, and gripper deadman work in simulation should
+you use `configs/yam_encoder_hw.yaml` with a physical follower.
 
-## Editable CAD and validation
+## What remains to validate physically
 
-STEP files, STLs, the parametric generator, and tests live in
-[`simple_cad`](simple_cad/README.md). The automated checks require exactly eight
-connected final solids, verify the purchased-component allowances, reject
-adjacent-part interference, and sample the required motion window of all seven
-axes.
+- FDM bearing, axle, pot-body, and shaft fits on your printer.
+- The exact Walmart pot's connector contact and wire order on the eBay shield.
+- Pot linearity, backlash, wear, and real electrical travel. Cheap WH148 carbon
+  pots save substantial cost but are wear parts, not precision encoders.
+- Flexure force and fatigue in your PETG brand and print orientation.
+- Full cable motion and the controller tray clips with the exact boards shipped
+  by marketplace sellers.
+- A conservative safe working load for the complete printed assembly. No such
+  rating is claimed by this prototype.
+
+CAD source, regeneration instructions, and automated geometry tests are in
+[`simple_cad`](simple_cad/README.md).

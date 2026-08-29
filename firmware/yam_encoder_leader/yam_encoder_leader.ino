@@ -1,82 +1,62 @@
-#include <Wire.h>
+// No-solder YAM leader: seven factory-wired B10K potentiometers on a Nano
+// I/O sensor shield.  Compatible with the classic ATmega328P Arduino Nano.
 
-#define MUX_ADDR 0x70
-#define AS5600_ADDR 0x36
 #define N_CH 7
-#define DEADMAN_PIN 0
+#define GRIPPER_CH 6
 #define SAMPLE_HZ 100
+#define ADC_MIN_VALID 3
+#define ADC_MAX_VALID 1020
+#define DEADMAN_COUNTS 25
 
-#define REG_STATUS 0x0B
-#define REG_RAW_ANGLE 0x0C
+const uint8_t POT_PINS[N_CH] = {A0, A1, A2, A3, A4, A5, A6};
 
 static uint32_t sequenceNumber = 0;
+static int16_t releasedGripper = 0;
 
-bool muxSelect(uint8_t channel) {
-  if (channel >= 8) return false;
-  Wire.beginTransmission(MUX_ADDR);
-  Wire.write(1 << channel);
-  return Wire.endTransmission() == 0;
+int16_t readPot(uint8_t channel) {
+  uint16_t total = 0;
+  for (uint8_t sample = 0; sample < 4; sample++) {
+    total += analogRead(POT_PINS[channel]);
+  }
+  const int16_t value = (total + 2) / 4;
+  if (value <= ADC_MIN_VALID || value >= ADC_MAX_VALID) return -1;
+  return value;
 }
 
-void muxDisableAll() {
-  Wire.beginTransmission(MUX_ADDR);
-  Wire.write(0x00);
-  Wire.endTransmission();
-}
-
-int16_t readRawAngle() {
-  Wire.beginTransmission(AS5600_ADDR);
-  Wire.write(REG_RAW_ANGLE);
-  if (Wire.endTransmission(false) != 0) return -1;
-  if (Wire.requestFrom(AS5600_ADDR, 2) != 2) return -1;
-  const uint8_t highByte = Wire.read();
-  const uint8_t lowByte = Wire.read();
-  return ((highByte << 8) | lowByte) & 0x0FFF;
-}
-
-uint8_t readStatus() {
-  Wire.beginTransmission(AS5600_ADDR);
-  Wire.write(REG_STATUS);
-  if (Wire.endTransmission(false) != 0) return 0;
-  if (Wire.requestFrom(AS5600_ADDR, 1) != 1) return 0;
-  return Wire.read();
+int16_t captureReleasedGripper() {
+  uint32_t total = 0;
+  uint8_t validSamples = 0;
+  for (uint8_t sample = 0; sample < 64; sample++) {
+    const int16_t value = readPot(GRIPPER_CH);
+    if (value >= 0) {
+      total += value;
+      validSamples++;
+    }
+    delay(5);
+  }
+  return validSamples == 0 ? -1 : total / validSamples;
 }
 
 void diagnose() {
-  Serial.println("# YAM seven-channel encoder scan");
+  Serial.println(F("# YAM seven-channel potentiometer scan"));
   for (uint8_t channel = 0; channel < N_CH; channel++) {
-    if (!muxSelect(channel)) {
-      Serial.printf("# ch%u: mux not responding at 0x%02X\n", channel, MUX_ADDR);
-      continue;
-    }
-
-    Wire.beginTransmission(AS5600_ADDR);
-    if (Wire.endTransmission() != 0) {
-      Serial.printf("# ch%u: no AS5600 -- check wiring and power\n", channel);
-      continue;
-    }
-
-    const uint8_t status = readStatus();
-    const char *magnet = (status & 0x20) ? "ok"
-                         : (status & 0x10) ? "too weak / too far"
-                         : (status & 0x08) ? "too strong / too close"
-                                           : "not detected";
-    Serial.printf("# ch%u: AS5600 found, magnet %s, raw %d\n", channel,
-                  magnet, readRawAngle());
+    Serial.print(F("# ch"));
+    Serial.print(channel);
+    Serial.print(F(": raw "));
+    Serial.println(readPot(channel));
   }
-  muxDisableAll();
-  Serial.println("# scan done");
+  Serial.print(F("# released gripper baseline: "));
+  Serial.println(releasedGripper);
+  Serial.println(F("# squeeze gripper to enable commands"));
 }
 
 void setup() {
   Serial.begin(115200);
-  pinMode(DEADMAN_PIN, INPUT_PULLUP);
-  // On the QT Py ESP32-S2, Wire's board-default bus is the solder-free
-  // STEMMA-QT connector.  A conservative 100 kHz clock is more tolerant of
-  // the several moving-arm cable runs than fast-mode I2C.
-  Wire.begin();
-  Wire.setClock(100000);
-  delay(300);
+  analogReference(DEFAULT);
+  delay(1200);
+  // Keep the gripper fully released while the controller starts.  Its printed
+  // flexure provides the return action, so no button or extra wire is needed.
+  releasedGripper = captureReleasedGripper();
   diagnose();
 }
 
@@ -90,21 +70,26 @@ void loop() {
     nextSampleMicros = nowMicros + periodMicros;
   }
 
-  int16_t angles[N_CH];
+  int16_t counts[N_CH];
+  bool allValid = releasedGripper >= 0;
   for (uint8_t channel = 0; channel < N_CH; channel++) {
-    angles[channel] = muxSelect(channel) ? readRawAngle() : -1;
+    counts[channel] = readPot(channel);
+    if (counts[channel] < 0) allValid = false;
   }
+  const bool gripperSqueezed =
+      counts[GRIPPER_CH] >= 0 &&
+      abs(counts[GRIPPER_CH] - releasedGripper) >= DEADMAN_COUNTS;
 
   // Versioned output lets the host reject controller reboots and stale data:
-  // YAM1,sequence,millis,count0,...,count6,deadman
-  Serial.print("YAM1,");
+  // YAMP1,sequence,millis,count0,...,count6,deadman
+  Serial.print(F("YAMP1,"));
   Serial.print(sequenceNumber++);
   Serial.print(',');
   Serial.print(millis());
   for (uint8_t channel = 0; channel < N_CH; channel++) {
     Serial.print(',');
-    Serial.print(angles[channel]);
+    Serial.print(counts[channel]);
   }
   Serial.print(',');
-  Serial.println(digitalRead(DEADMAN_PIN) == LOW ? 1 : 0);
+  Serial.println(allValid && gripperSqueezed ? 1 : 0);
 }

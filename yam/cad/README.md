@@ -1,5 +1,10 @@
 # Parametric YAM Wrist Adapter
 
+> **Legacy prototype:** These files belong to the earlier AS5600/M3-screw
+> design and are not used by the current inexpensive leader. Start with the
+> [current BOM, print list, and assembly guide](../README.md), and print only
+> the STLs under `yam/simple_cad/generated/stl` for that build.
+
 The YAM needs one more arm axis than the original SO-ARM leader. These files
 insert a standard encoder cartridge at 90 degrees between the original wrist
 and handle without changing the proven AS5600 housing, bearing housing, or

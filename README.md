@@ -2,9 +2,10 @@
 
 Open-source, low-cost, 3D-printed leader arm for teleoperating an SO-ARM
 
-> **YAM prototype:** The `yam-encoder-leader` branch now includes a no-solder,
-> eight-piece AS5600 leader for the six-axis I2RT YAM. See the [complete linked
-> BOM, print list, and assembly order](yam/README.md).
+> **YAM prototype:** The `yam-encoder-leader` branch includes a no-solder,
+> eight-piece, bearing-supported potentiometer leader for the six-axis I2RT
+> YAM. Its current core cart is about $49 delivered to San Francisco. See the
+> [complete linked BOM, print list, assembly order, and validation limits](yam/README.md).
 
 https://github.com/user-attachments/assets/977a0b56-c7d2-4a90-b86a-445dd3963871
 
