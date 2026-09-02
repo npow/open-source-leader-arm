@@ -45,6 +45,39 @@ POT_BUSHING_CLEARANCE = 0.35
 POT_SHAFT_SOCKET_DIAMETER = 5.85
 NANO_SHIELD_EDGE_CLEARANCE = 0.60
 
+# Controller placement and factory cable budget.  The tray sits on link 3 so
+# every lead runs toward the middle of the chain, but the sourced potentiometers
+# ship with fixed 200 mm leads and the chain is roughly 400 mm long.  No tray
+# position makes the outer channels reach, so extensions are part of the BOM and
+# ``validate_cable_reach`` enforces the budget instead of asserting it in prose.
+# The tray sits inside the shell link 5 sweeps about J4, so folding the wrist
+# down and across drives link 5 into it.  Moving it to the other side only
+# mirrors the problem, because J5 is a yaw axis and the envelope is symmetric.
+# (130.0, 0.0, 225.0) -- outboard, in the arm's own plane -- does clear the whole
+# wrist grid and still fits the cable budget, but it is a mechanical change with
+# its own unvalidated standoffs, so it is recorded rather than adopted here.
+CONTROLLER_TRAY_CENTER = (30.0, 45.0, 225.0)
+CONTROLLER_PART_INDEX = 3  # simple_link_3 carries the shield tray
+POT_LEAD_LENGTH = 200.0
+EXTENSION_LEAD_LENGTH = 300.0
+CABLE_ROUTING_FACTOR = 1.25  # the cable follows the links, not the straight line
+CABLE_SERVICE_LOOP = 35.0  # slack per rotating joint a run crosses
+CABLE_TERMINATION_ALLOWANCE = 20.0  # both connector bodies plus strain relief
+
+# Base pedestal.  Link 1 sweeps the volume directly under the J1 socket, so the
+# pedestal may only reach that socket through the wedge behind J1's travel.
+BASE_PLATE_LENGTH = 110.0
+BASE_PLATE_WIDTH = 90.0
+BASE_PLATE_THICKNESS = 8.0
+BUTTRESS_X_MIN = -4.0
+BUTTRESS_X_MAX = 22.0
+BUTTRESS_HALF_WIDTH = 16.0
+J1_SWEEP_RADIUS = 39.0  # link 1's neck and beam reach this far from the J1 axis
+J1_SWEEP_Z_MAX = 49.3  # top of the J1 socket, above which nothing of link 1 passes
+# The neck's corner lies exactly on the ideal sweep envelope, so the envelope
+# needs real margin or the pedestal is tangent to the link at the stop.
+J1_SWEEP_ANGULAR_MARGIN = 4.0
+
 # Joint envelope and sensor stack.  The potentiometer is inserted from the top
 # after the structural axle has snapped through the bearing.  Its shaft then
 # presses into the split socket at the unloaded end of the axle.
@@ -61,6 +94,11 @@ STOP_PIN_RADIUS = 1.25
 STOP_GROOVE_INNER_RADIUS = 11.25
 STOP_GROOVE_OUTER_RADIUS = 14.95
 STOP_GROOVE_DEPTH = 2.4
+# Clearance cut past each end of a joint's declared travel.  The stop pin itself
+# subtends about 5.5 degrees at STOP_RADIUS, so this must exceed that or the pin
+# fouls the end of its own groove at the zero pose.  Every degree beyond that is
+# overtravel the rest of the design has to stay collision-free through.
+STOP_ANGULAR_CLEARANCE = 8.0
 
 BEAM_RADIUS = 6.5
 NECK_LENGTH = 25.0
@@ -92,6 +130,50 @@ JOINT_LIMITS_DEG: Mapping[str, Tuple[float, float]] = {
     "j6": (-120.0, 120.0),
     "j7": (0.0, 45.0),
 }
+
+
+# Where the base blocks a joint before its printed stop does.  J2's negative
+# swing drives link 2 and link 3 into the base plate at about -90 degrees, well
+# inside its declared -105.  This is a measured limitation of the link geometry,
+# not something the stops enforce, and the host mapping has to respect it or the
+# follower is commanded to a pose the leader cannot physically reach.
+BASE_LIMITED_RANGE_DEG: Mapping[str, Tuple[float, float]] = {
+    "j2": (-89.8, math.inf),
+    # J3 clears its declared -105 and only grazes the plate 2.5 degrees into the
+    # overtravel band, so this trims the overtravel rather than the spec.
+    "j3": (-107.4, math.inf),
+}
+
+
+def stop_pin_half_angle() -> float:
+    """Angular half-width of the stop pin at its own radius."""
+
+    return math.degrees(math.asin(STOP_PIN_RADIUS / STOP_RADIUS))
+
+
+def stop_limited_range(joint: str) -> Tuple[float, float]:
+    """Travel the printed stops actually permit, which is not the declared range.
+
+    The groove is cut ``STOP_ANGULAR_CLEARANCE`` past each end of the declared
+    range, but the pin stops when its *edge* meets the end of the groove, not
+    its centre.  Everything downstream -- the base pedestal wedge and the
+    collision suite -- has to use this rather than the nominal limits.
+    """
+
+    lower, upper = JOINT_LIMITS_DEG[joint]
+    overtravel = max(0.0, STOP_ANGULAR_CLEARANCE - stop_pin_half_angle())
+    return lower - overtravel, upper + overtravel
+
+
+def usable_range(joint: str) -> Tuple[float, float]:
+    """Travel that is both inside the printed stops and clear of the base."""
+
+    lower, upper = stop_limited_range(joint)
+    blocked = BASE_LIMITED_RANGE_DEG.get(joint)
+    if blocked is not None:
+        lower = max(lower, blocked[0])
+        upper = min(upper, blocked[1])
+    return lower, upper
 
 
 def _v_add(a: Vector3, b: Vector3) -> Vector3:
@@ -183,6 +265,61 @@ def _annular_sector_x(
         .polyline(outer + inner)
         .close()
         .extrude(depth)
+    )
+
+
+def _annular_sector_z(
+    inner_radius: float,
+    outer_radius: float,
+    start_degrees: float,
+    end_degrees: float,
+    height: float,
+    z_start: float,
+    center: Tuple[float, float],
+) -> cq.Workplane:
+    """Extrude a sampled annular sector along +Z about ``center``."""
+
+    if end_degrees <= start_degrees:
+        raise ValueError("annular sector end must follow start")
+    sweep = end_degrees - start_degrees
+    samples = max(8, int(math.ceil(sweep / 4.0)))
+    angles = [
+        math.radians(start_degrees + sweep * index / samples)
+        for index in range(samples + 1)
+    ]
+    outer = [
+        (center[0] + outer_radius * math.cos(a), center[1] + outer_radius * math.sin(a))
+        for a in angles
+    ]
+    inner = [
+        (center[0] + inner_radius * math.cos(a), center[1] + inner_radius * math.sin(a))
+        for a in reversed(angles)
+    ]
+    return (
+        cq.Workplane("XY", origin=(0.0, 0.0, z_start))
+        .polyline(outer + inner)
+        .close()
+        .extrude(height)
+    )
+
+
+def _socket_void() -> cq.Workplane:
+    """Bearing pocket plus shaft clearance, in canonical +X socket coordinates.
+
+    Anything unioned onto a socket has to repeat this cut or it silently fills
+    the joint bore.
+    """
+
+    return _cylinder_x(
+        BEARING_POCKET_DIAMETER / 2.0,
+        BEARING_POCKET_DEPTH + 0.02,
+        -0.01,
+    ).union(
+        _cylinder_x(
+            SHAFT_CLEARANCE_DIAMETER / 2.0,
+            SOCKET_BODY_DEPTH - BEARING_POCKET_DEPTH + 0.02,
+            BEARING_POCKET_DEPTH,
+        )
     )
 
 
@@ -336,9 +473,8 @@ def _stop_groove(lower_degrees: float, upper_degrees: float) -> cq.Workplane:
 
     # At zero pose the stationary pin is at angle zero.  In the moving frame
     # it sweeps in the opposite direction as the joint rotates.
-    angular_clearance = 8.0
-    groove_start = -upper_degrees - angular_clearance
-    groove_end = -lower_degrees + angular_clearance
+    groove_start = -upper_degrees - STOP_ANGULAR_CLEARANCE
+    groove_end = -lower_degrees + STOP_ANGULAR_CLEARANCE
     return _annular_sector_x(
         STOP_GROOVE_INNER_RADIUS,
         STOP_GROOVE_OUTER_RADIUS,
@@ -468,18 +604,7 @@ def _socket_neck(
     )
     # This neck overlaps the socket for strength, so repeat the bearing and
     # axle cuts here; otherwise the union would silently fill the joint bore.
-    local_void = _cylinder_x(
-        BEARING_POCKET_DIAMETER / 2.0,
-        BEARING_POCKET_DEPTH + 0.02,
-        -0.01,
-    ).union(
-        _cylinder_x(
-            SHAFT_CLEARANCE_DIAMETER / 2.0,
-            SOCKET_BODY_DEPTH - BEARING_POCKET_DEPTH + 0.02,
-            BEARING_POCKET_DEPTH,
-        )
-    )
-    neck = neck.cut(_orient_x(local_void, axis, center))
+    neck = neck.cut(_orient_x(_socket_void(), axis, center))
     waypoint = _v_add(
         _v_add(center, _v_scale(axis, SOCKET_BODY_DEPTH / 2.0)),
         _v_scale(radial, NECK_LENGTH),
@@ -527,33 +652,111 @@ def _link(proximal: str, distal: str) -> cq.Workplane:
     return part.clean()
 
 
+def _link_1_sweep() -> cq.Workplane:
+    """The volume link 1 sweeps under the J1 socket, as a cut tool for the base.
+
+    The flange is a full disc, so no pedestal material may sit under it at any
+    angle.  Outside the flange the neck and beam only sweep J1's stop-limited
+    travel, which leaves a wedge behind the joint for the pedestal to reach the
+    socket wall through.  That wedge carries the entire arm, so it is derived
+    from the travel rather than guessed, and it widens with radius: a beam of a
+    given width subtends less angle the further out it is.
+    """
+
+    center, _ = JOINTS["j1"]
+    center_xy = (center[0], center[1])
+    clearance = 0.3
+    sweep_bottom = center[2] - FLANGE_THICKNESS - clearance
+    height = J1_SWEEP_Z_MAX - sweep_bottom
+    inner_radius = FLANGE_RADIUS + 0.5
+
+    disc = (
+        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
+        .center(*center_xy)
+        .circle(inner_radius)
+        .extrude(FLANGE_THICKNESS + 2.0 * clearance)
+    )
+
+    lower, upper = stop_limited_range("j1")
+    reach = max(abs(lower), abs(upper))
+
+    def free_half_angle(radius: float) -> float:
+        """Half-angle of the wedge the sweep leaves clear at this radius."""
+
+        beam_half = math.degrees(math.asin(min(1.0, BEAM_RADIUS / radius)))
+        return 180.0 - reach - beam_half - J1_SWEEP_ANGULAR_MARGIN
+
+    if free_half_angle(inner_radius) <= 1.0:
+        raise RuntimeError(
+            "J1's travel leaves no wedge for the base pedestal to reach the socket"
+        )
+
+    band = (
+        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
+        .center(*center_xy)
+        .circle(J1_SWEEP_RADIUS)
+        .circle(inner_radius)
+        .extrude(height)
+    )
+
+    # Run the wedge well past the band so its closing chords fall outside the
+    # region being cut; otherwise a chord would shave material off the wedge.
+    outer_radius = J1_SWEEP_RADIUS * 1.4
+    # The boundary turns fastest just outside the flange, so sample radius
+    # geometrically rather than uniformly.
+    samples = 40
+    ratio = outer_radius / inner_radius
+    radii = [inner_radius * ratio ** (index / samples) for index in range(samples + 1)]
+
+    def point(radius: float, degrees: float) -> Tuple[float, float]:
+        angle = math.radians(degrees)
+        return (
+            center_xy[0] + radius * math.cos(angle),
+            center_xy[1] + radius * math.sin(angle),
+        )
+
+    boundary = [point(r, 180.0 - free_half_angle(r)) for r in radii]
+    boundary += [point(r, 180.0 + free_half_angle(r)) for r in reversed(radii)]
+    wedge = (
+        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
+        .polyline(boundary)
+        .close()
+        .extrude(height)
+    )
+    return disc.union(band.cut(wedge))
+
+
 def build_base() -> cq.Workplane:
-    joint_center, _ = JOINTS["j1"]
-    base = _box(110.0, 90.0, 8.0, (0.0, 0.0, 4.0))
+    joint_center, joint_axis = JOINTS["j1"]
+    base = _box(
+        BASE_PLATE_LENGTH,
+        BASE_PLATE_WIDTH,
+        BASE_PLATE_THICKNESS,
+        (0.0, 0.0, BASE_PLATE_THICKNESS / 2.0),
+    )
     base = base.edges("|Z").fillet(8.0)
-    # Twin columns support the upward-facing J1 socket while leaving the axle,
-    # potentiometer insertion path, and rotating link unobstructed.
-    column_height = joint_center[2]
-    for y_offset in (-4.0, 4.0):
-        base = base.union(
-            _box(
-                6.0,
-                6.0,
-                column_height,
-                (
-                    joint_center[0] - 25.0,
-                    joint_center[1] + y_offset,
-                    8.0 + column_height / 2.0,
-                ),
-            )
-        )
-        base = base.union(
-            _cylinder_between(
-                (joint_center[0] - 25.0, joint_center[1] + y_offset, 45.0),
-                (joint_center[0] - 15.0, joint_center[1] + y_offset, 45.0),
-                3.0,
-            )
-        )
+
+    # One buttressed pedestal replaces the original pair of 6 mm columns.  Those
+    # met the J1 socket only through two small stub lenses, so every newton the
+    # arm applied crossed a section modulus of roughly 70 mm^3 in PETG, across
+    # the layer lines.  A single slab reaching the socket wall through the wedge
+    # behind J1's travel carries the same load through more than ten times that.
+    buttress_height = joint_center[2] + SOCKET_BODY_DEPTH - BASE_PLATE_THICKNESS
+    buttress = _box(
+        BUTTRESS_X_MAX - BUTTRESS_X_MIN,
+        BUTTRESS_HALF_WIDTH * 2.0,
+        buttress_height,
+        (
+            (BUTTRESS_X_MIN + BUTTRESS_X_MAX) / 2.0,
+            joint_center[1],
+            BASE_PLATE_THICKNESS + buttress_height / 2.0,
+        ),
+    )
+    # The pedestal overlaps the socket wall so the two fuse into one section
+    # rather than merely touching, so it has to repeat the joint bore cut.
+    buttress = buttress.cut(_orient_x(_socket_void(), joint_axis, joint_center))
+    buttress = buttress.cut(_link_1_sweep())
+    base = base.union(buttress)
     base = base.union(_joint_socket("j1"))
 
     # Four ordinary wood screws can secure the base to a board;
@@ -596,27 +799,37 @@ def build_link_6() -> cq.Workplane:
 
 def build_link_3() -> cq.Workplane:
     part = _link("j3", "j4")
-    # The controller sits near the chain midpoint so all seven factory 200 mm
-    # sensor leads reach it.  Four low corner clips retain the standard Nano
-    # I/O shield without tape, screws, nuts, or a separate enclosure.
+    # The controller sits near the chain midpoint to keep every sensor run as
+    # short as possible; ``validate_cable_reach`` says which channels still need
+    # an extension lead.  Four low corner clips retain the standard Nano I/O
+    # shield without tape, screws, nuts, or a separate enclosure.
     tray_long = NANO_SHIELD_LONG + NANO_SHIELD_EDGE_CLEARANCE * 2.0
     tray_short = NANO_SHIELD_SHORT + NANO_SHIELD_EDGE_CLEARANCE * 2.0
-    tray_center = (30.0, 45.0, 225.0)
+    tray_center = CONTROLLER_TRAY_CENTER
+    # Everything below follows the tray constant, including which side of the
+    # link it hangs on, so moving the tray moves its mounts and clips with it.
+    side = 1.0 if tray_center[1] >= 0.0 else -1.0
     part = part.union(_box(tray_long + 4.0, 2.4, tray_short + 4.0, tray_center))
     # Two short side standoffs attach the tray to link 3 while leaving the
     # neighbouring links' swept volume clear at the assembly zero pose.
-    for z in (208.0, 225.0):
-        part = part.union(_cylinder_between((80.0, 0.0, z), (60.0, 45.0, z), 3.0))
+    beam_x = JOINTS["j4"][0][0]
+    standoff_x = tray_center[0] + 30.0
+    for z in (tray_center[2] - 17.0, tray_center[2]):
+        part = part.union(
+            _cylinder_between(
+                (beam_x, 0.0, z), (standoff_x, tray_center[1], z), 3.0
+            )
+        )
     for x_sign in (-1.0, 1.0):
         for z_sign in (-1.0, 1.0):
             x = tray_center[0] + x_sign * (tray_long / 2.0 + 1.0)
             z = tray_center[2] + z_sign * (tray_short / 2.0 + 1.0)
-            post = _box(3.0, 7.0, 8.0, (x, tray_center[1] + 2.3, z))
+            post = _box(3.0, 7.0, 8.0, (x, tray_center[1] + side * 2.3, z))
             lip = _box(
                 5.0,
                 1.4,
                 5.0,
-                (x - x_sign * 1.0, tray_center[1] + 5.9, z - z_sign * 1.0),
+                (x - x_sign * 1.0, tray_center[1] + side * 5.9, z - z_sign * 1.0),
             )
             part = part.union(post).union(lip)
     return part.clean()
@@ -664,6 +877,70 @@ def build_joint_fit_test() -> cq.Workplane:
     return combined.translate((0.0, 0.0, -bounds.zmin))
 
 
+PART_ORDER: Tuple[str, ...] = (
+    "simple_base",
+    "simple_link_1",
+    "simple_link_2",
+    "simple_link_3",
+    "simple_link_4",
+    "simple_link_5",
+    "simple_link_6",
+    "simple_gripper_lever",
+)
+
+
+def _pot_terminal(joint: str) -> Vector3:
+    """Where a joint's potentiometer leads leave its carrier."""
+
+    center, axis = JOINTS[joint]
+    return _v_add(center, _v_scale(_unit(axis), POT_HOLDER_BACK_X))
+
+
+def cable_runs() -> Dict[str, Dict[str, float]]:
+    """Length of lead each channel needs to reach the controller tray.
+
+    Joint ``jN``'s potentiometer is carried by the socket side of that joint,
+    which is part ``N - 1``, so the number of rotating joints a run crosses is
+    its distance along the chain from the part holding the tray.  Each crossing
+    needs a service loop or the cable becomes a spring the joint has to fight.
+    """
+
+    runs: Dict[str, Dict[str, float]] = {}
+    for index, joint in enumerate(JOINTS):
+        crossings = abs(index - CONTROLLER_PART_INDEX)
+        straight = _norm(_v_sub(CONTROLLER_TRAY_CENTER, _pot_terminal(joint)))
+        required = (
+            straight * CABLE_ROUTING_FACTOR
+            + CABLE_SERVICE_LOOP * crossings
+            + CABLE_TERMINATION_ALLOWANCE
+        )
+        runs[joint] = {
+            "straight_mm": straight,
+            "joints_crossed": float(crossings),
+            "required_mm": required,
+            "needs_extension": float(required > POT_LEAD_LENGTH),
+        }
+    return runs
+
+
+def extension_channels() -> Tuple[str, ...]:
+    """Channels whose factory lead alone cannot reach the tray."""
+
+    return tuple(
+        joint for joint, run in cable_runs().items() if run["needs_extension"]
+    )
+
+
+def validate_cable_reach() -> None:
+    budget = POT_LEAD_LENGTH + EXTENSION_LEAD_LENGTH
+    for joint, run in cable_runs().items():
+        if run["required_mm"] > budget:
+            raise RuntimeError(
+                f"{joint} needs about {run['required_mm']:.0f} mm of lead to "
+                f"reach the controller but the budget is {budget:.0f} mm"
+            )
+
+
 def build_parts() -> Dict[str, cq.Workplane]:
     return {
         "simple_base": build_base(),
@@ -683,16 +960,8 @@ def _intersection_volume(a: cq.Workplane, b: cq.Workplane) -> float:
 
 
 def validate_parts(parts: Mapping[str, cq.Workplane]) -> None:
-    expected_names = {
-        "simple_base",
-        "simple_link_1",
-        "simple_link_2",
-        "simple_link_3",
-        "simple_link_4",
-        "simple_link_5",
-        "simple_link_6",
-        "simple_gripper_lever",
-    }
+    validate_cable_reach()
+    expected_names = set(PART_ORDER)
     if set(parts) != expected_names:
         raise RuntimeError(f"unexpected print manifest: {sorted(parts)}")
 
@@ -705,17 +974,7 @@ def validate_parts(parts: Mapping[str, cq.Workplane]) -> None:
         if part.val().Volume() < 1200.0:
             raise RuntimeError(f"{name} has unexpectedly low volume")
 
-    ordered = [
-        "simple_base",
-        "simple_link_1",
-        "simple_link_2",
-        "simple_link_3",
-        "simple_link_4",
-        "simple_link_5",
-        "simple_link_6",
-        "simple_gripper_lever",
-    ]
-    for parent, child in zip(ordered, ordered[1:]):
+    for parent, child in zip(PART_ORDER, PART_ORDER[1:]):
         overlap = _intersection_volume(parts[parent], parts[child])
         if overlap > 0.1:
             raise RuntimeError(f"{parent} and {child} interfere by {overlap:.3f} mm^3")
@@ -782,6 +1041,16 @@ def main() -> None:
     if not args.validate_only:
         export_parts(parts, args.output_dir)
         print(f"Exported {len(parts)} structural parts plus joint_fit_test to {args.output_dir}")
+    needs = extension_channels()
+    print("Cable budget (factory lead is " f"{POT_LEAD_LENGTH:.0f} mm):")
+    for joint, run in cable_runs().items():
+        flag = " EXTENSION" if run["needs_extension"] else ""
+        print(
+            f"  {joint}: {run['straight_mm']:6.1f} mm direct, "
+            f"{int(run['joints_crossed'])} joints crossed, "
+            f"{run['required_mm']:6.1f} mm needed{flag}"
+        )
+    print(f"{len(needs)} of {len(cable_runs())} channels need an extension lead: {', '.join(needs)}")
 
 
 if __name__ == "__main__":

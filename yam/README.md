@@ -1,15 +1,19 @@
 # Simple no-solder YAM leader
 
-This branch is the inexpensive version: seven factory-wired linear
-potentiometers, seven bearings, a pre-soldered Arduino Nano, one plug-in I/O
-shield, and eight printed structural pieces. There are no magnets, encoder
-boards, muxes, cable kits, hex nuts, joint screws, or soldered connections.
-The gripper's printed PETG leaf is both its return spring and the firmware
-deadman input.
+This branch is the inexpensive version: seven factory-wired **rotary**
+potentiometers with a linear taper, seven bearings, a pre-soldered Arduino
+Nano, one plug-in I/O shield, one pack of extension leads, and eight printed
+structural pieces. There are no magnets, encoder boards, muxes, hex nuts,
+joint screws, or soldered connections. The gripper's printed PETG leaf is both
+its return spring and the firmware deadman input.
 
-This is a generated and collision-checked **first-print prototype**, not a
-physically qualified product. Print the joint coupon and verify the sourced
-parts before printing the arm.
+This is a generated prototype. Its geometry check moves each joint across the
+travel the hardware actually permits, with the whole distal chain attached, and
+looks for interference between every pair of the eight parts. It does **not**
+claim a self-collision-free workspace: like any serial arm, this one can be
+folded into itself. That is a nominal-geometry check on a **first-print
+prototype**, not a physically qualified product. Print the joint coupon, load-test its snap axle,
+and verify the sourced parts before printing the arm.
 
 ## Cost delivered to 94114
 
@@ -18,6 +22,12 @@ core lines below total **$44.98**, each currently shows **free US shipping**,
 and the estimated San Francisco total is **$48.86** after
 [8.625% sales tax](https://www.cdtfa.ca.gov/taxes-and-fees/rates.aspx).
 That excludes filament and a USB cable if you do not already have them.
+
+The fifth line, extension leads, was added after that recheck and its price is
+**not verified**: every marketplace listing linked below blocks automated price
+lookups, so confirm the delivered price in your own cart. Budget roughly $6-9.
+Buying it on eBay, where the bearings, Nano, and shield already come from,
+avoids a fifth shipping charge or an Amazon free-shipping minimum.
 
 The estimate is deliberately a reproducible cart, not an optimistic sum of
 unit prices from overseas marketplaces. Prices, stock, tax, and delivery dates
@@ -31,6 +41,7 @@ can change at checkout.
 | [6000-2RS sealed bearings, 10×26×8 mm, 10-pack](https://www.ebay.com/itm/301956681716) | 7 | $11.25 | Free | Three spares. The larger 10 mm bore leaves a printable load-bearing wall around the 6 mm pot coupling. **608 bearings do not fit this design.** |
 | [Classic ATmega328P Nano, USB-C, headers already soldered](https://www.ebay.com/itm/205884861373) | 1 | $10.99 | Free | The listing must say **soldered**. A bare-header Nano defeats the no-solder goal. |
 | [Nano I/O expansion sensor shield](https://www.ebay.com/itm/201247537349) | 1 | $3.40 | Free | Match the pictured 58×54 mm red Nano shield with servo-style signal/5V/ground header rows. The seller's title mentions UNO, but the pictured socket is for a Nano. |
+| [30 cm male-to-female Dupont jumper wires, 40-pack](https://www.ebay.com/itm/256858362629) | 15 used (5 channels x 3) | about $7.69, **unverified** | Free shown, **unverified** | Five of the seven channels cannot reach the controller on a 20 cm lead; see [Plug-in wiring](#plug-in-wiring). Separate wires also sidestep the connector question below, because you place each wire on the right pin yourself. [3-pin servo extensions](https://www.ebay.com/itm/324926121235) are tidier if the two housings mate. |
 | PETG filament | about 500 g | Existing spool, or local purchase | — | PETG is required for the axle snaps, pot clips, and gripper flexure. Do not use brittle silk PLA. |
 | USB-C **data** cable | 1 | Reuse | — | Charge-only cables cannot upload firmware or stream positions. |
 | #8 or 4 mm wood screws | 4 optional | Reuse/buy locally | — | Only for fastening the base to a board; they drive into wood, so no nuts are used. A table clamp also works. |
@@ -66,13 +77,13 @@ Print this inexpensive coupon first; it is not part of the final arm:
 
 | STL | Qty | Checks |
 | --- | ---: | --- |
-| [`joint_fit_test.stl`](simple_cad/generated/stl/joint_fit_test.stl) | 1 | 6000 bearing pocket, 9.8 mm snap axle, 6 mm split shaft socket, and WH148 body/bushing carrier. The socket and plug are two separate solids in one STL. |
+| [`joint_fit_test.stl`](simple_cad/generated/stl/joint_fit_test.stl) | 1 | 6000 bearing pocket, 9.8 mm snap axle, 6 mm split shaft socket, and WH148 body/bushing carrier. The socket and plug are two separate solids in one STL. Also **pull on the assembled coupon**: the snap barbs retain the axle through a shallow inclined face, and at J1 they carry the arm in tension. |
 
 The final arm is exactly these eight prints, one of each:
 
 | Order | STL | Integral features |
 | ---: | --- | --- |
-| 1 | [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl) | J1 bearing/pot socket and four optional mounting holes |
+| 1 | [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl) | J1 bearing/pot socket, buttressed pedestal, and four optional mounting holes |
 | 2 | [`simple_link_1.stl`](simple_cad/generated/stl/simple_link_1.stl) | J1 axle/coupling and J2 socket |
 | 3 | [`simple_link_2.stl`](simple_cad/generated/stl/simple_link_2.stl) | J2 axle/coupling and J3 socket |
 | 4 | [`simple_link_3.stl`](simple_cad/generated/stl/simple_link_3.stl) | J3 axle, J4 socket, and snap tray for the 58×54 mm Nano shield |
@@ -109,6 +120,27 @@ A printed pin and recessed arc stop the joint before the pot's internal end
 stops. J1 uses a protected 280° leader sweep and software scales it to YAM's
 325° range. J2/J3 use 210°, J4/J5 180°, and J6 240°; all stay within the
 nominal 300° electrical travel.
+
+**J2 does not actually get its full 210°.** Swinging it negative drives links 2
+and 3 into the base plate at about **−90°**, roughly 15° before its printed stop
+at −105°. The bare base plate causes this on its own, so it is a link-geometry
+limitation rather than a fit constant, and it is unchanged by the pedestal.
+`BASE_LIMITED_RANGE_DEG` in the CAD records the measured value, and host
+calibration has to respect it or the follower gets commanded to a pose the
+leader cannot reach. Fixing it properly means raising J2 or shrinking the base
+plate and regenerating every part.
+
+**The controller tray blocks part of the wrist's travel.** The tray on link 3
+lies inside the shell link 5 sweeps about J4, so folding the wrist down and
+across — roughly J4 below −45° combined with J5 beyond −60° — drives link 5
+into it, about 500 mm³ deep at worst rather than a graze. Link 3's own beam is
+clear; it is entirely the tray. Moving the tray to the other side of the link
+only mirrors the blocked region, because J5 is a yaw axis and the envelope is
+symmetric. Relocating it outboard in the arm's own plane
+(`CONTROLLER_TRAY_CENTER = (130.0, 0.0, 225.0)`) clears the whole wrist grid and
+still fits the cable budget at 424 mm, but it needs different standoffs and its
+shield-plus-Nano envelope is not modelled, so this branch keeps the original
+position and records the limitation instead.
 
 ## Mechanical assembly
 
@@ -156,10 +188,32 @@ the analog rows on the Nano shield:
 
 For every connector: wiper to `S`, outer terminals to `V` and `G`. USB powers
 the low-current pots and Nano; do not connect the shield's barrel jack or an
-external servo supply. Route each 20 cm lead directly to the mid-arm tray with
-a loose service loop. The CAD keeps every sensor within the included lead
-length, but verify full motion before pressing cables into permanent clips or
-tape.
+external servo supply.
+
+### Lead lengths
+
+The pots ship with fixed 20 cm leads and the chain is about 40 cm long, so no
+tray position lets both ends of the arm reach. `build_simple_leader.py` now
+computes this budget and prints it whenever you generate. As shipped, J3 and J4
+reach on their factory leads and **J1, J2, J5, J6, and J7 each need one 30 cm
+extension**:
+
+| Channel | Direct distance | Rotating joints crossed | Lead needed |
+| --- | ---: | ---: | ---: |
+| J1 | 157 mm | 3 | 321 mm |
+| J2 | 144 mm | 2 | 270 mm |
+| J3 | 71 mm | 1 | 144 mm |
+| J4 | 62 mm | 0 | 97 mm |
+| J5 | 119 mm | 1 | 204 mm |
+| J6 | 127 mm | 2 | 249 mm |
+| J7 | 182 mm | 3 | 353 mm |
+
+"Lead needed" allows 25% over the straight line for following the links, 35 mm
+of service loop per rotating joint the run crosses, and 20 mm for connector
+bodies and strain relief. Leave those service loops genuinely loose: a taut
+cable across a joint is a return spring the potentiometer has to fight, and it
+shows up as hysteresis. Verify full motion before pressing cables into
+permanent clips or tape.
 
 ## Firmware and safe first test
 
@@ -200,12 +254,19 @@ you use `configs/yam_encoder_hw.yaml` with a physical follower.
 ## What remains to validate physically
 
 - FDM bearing, axle, pot-body, and shaft fits on your printer.
+- Axial pull-out strength of the snap axle. Its retaining face is inclined at
+  about 35 degrees rather than square, nominal radial engagement at the bearing
+  face is small, and a 6000-2RS inner race is chamfered. J1 hangs the arm from
+  this feature in tension.
+- Base stiffness. The pedestal reaches the J1 socket through the wedge behind
+  J1's travel, which is the governing section of the whole machine.
 - The exact Walmart pot's connector contact and wire order on the eBay shield.
 - Pot linearity, backlash, wear, and real electrical travel. Cheap WH148 carbon
   pots save substantial cost but are wear parts, not precision encoders.
 - Flexure force and fatigue in your PETG brand and print orientation.
 - Full cable motion and the controller tray clips with the exact boards shipped
-  by marketplace sellers.
+  by marketplace sellers. Only the printed tray is modelled: the shield and the
+  Nano plugged into it add roughly 20 mm that no geometry check covers.
 - A conservative safe working load for the complete printed assembly. No such
   rating is claimed by this prototype.
 
