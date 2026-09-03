@@ -17,34 +17,97 @@ and verify the sourced parts before printing the arm.
 
 ## Cost delivered to 94114
 
-Prices and listed shipping were rechecked on **August 28, 2026**. The four
-core lines below total **$44.98**, each currently shows **free US shipping**,
-and the estimated San Francisco total is **$48.86** after
+Prices and listed shipping were rechecked on **September 2, 2026**. The five
+purchased lines below total **$53.73**, each currently shows **free US shipping**,
+and the estimated San Francisco total is **$58.36** after
 [8.625% sales tax](https://www.cdtfa.ca.gov/taxes-and-fees/rates.aspx).
 That excludes filament and a USB cable if you do not already have them.
 
-The fifth line, extension leads, was added after that recheck and its price is
-**not verified**: every marketplace listing linked below blocks automated price
-lookups, so confirm the delivered price in your own cart. Budget roughly $6-9.
-Buying it on eBay, where the bearings, Nano, and shield already come from,
-avoids a fifth shipping charge or an Amazon free-shipping minimum.
+That total builds **one complete leader**. `Package price` is what you pay for
+the whole linked package, while `Qty used` is how many pieces one leader
+consumes. The remaining pieces are spares; this cart does not contain a second
+Nano or shield for a second leader.
 
-The estimate is deliberately a reproducible cart, not an optimistic sum of
-unit prices from overseas marketplaces. Prices, stock, tax, and delivery dates
-can change at checkout.
+For **two leaders**, do not simply double every one-leader package. The cheaper
+no-solder cart uses one 10-pack plus one 6-pack of the same pots, and one
+20-pack of the same-size bearings:
+
+| Two-leader purchase | Buy | Price used |
+| --- | ---: | ---: |
+| [WH148 B10K wired pots, 10-pack](https://www.walmart.com/ip/17169514309) | 1 | $20.35 |
+| [WH148 B10K wired pots, 6-pack](https://www.walmart.com/ip/17092016309) | 1 | $12.99 |
+| [6000-2RS 10×26×8 mm bearings, 20-pack](https://www.walmart.com/ip/5046432295) | 1 | $16.49 |
+| [Soldered USB-C Nano](https://www.ebay.com/itm/205884861373) | 2 | $19.78 with the listed quantity-two discount |
+| [58×54 mm Nano I/O shield](https://www.ebay.com/itm/191840837411) | 2 | $11.76 with the listed quantity-two discount |
+| [30 cm male-to-female Dupont ribbon, 40 wires](https://www.ebay.com/itm/323860148081) | 1 | $4.95 |
+
+That is about **$86.32 before tax** or **$93.77 after 8.625% tax**, saving
+**$22.96 delivered** versus buying two copies of every one-leader package. It
+leaves two spare pots, six spare bearings, and ten spare jumper wires. Two
+leaders also require about 1 kg of PETG and two USB-C data cables if those are
+not already available.
+
+### Best shot at two no-solder leaders below $50
+
+The following Alibaba cart has a conservative listed-item subtotal of
+**$18.48** before shipping, tax, or payment fees. These are direct product
+pages with an Add to cart option, not request-for-quote listings. The pots,
+Nanos, and shields are sold by the same supplier, which may help with combined
+shipping, but the delivered total is not verified.
+
+| Two-leader overseas purchase | Buy | Listed item price used |
+| --- | ---: | ---: |
+| [TZT WH148 factory-wired B10K pots with XH2.54 plug](https://www.alibaba.com/product-detail/TZT-WH148-Potentiometer-B10K-B100K-Speed_1600768301952.html) | 14 | $6.30 at $0.45 each |
+| [6000-2RS 10×26×8 mm bearings](https://www.alibaba.com/product-detail/10x26x8-mm-ABEC-7-6000-2rs_1600053563089.html) | 20 | $4.40 at $0.22 each; six spares |
+| [TZT ATmega328P/CH340 Nano V3.0](https://www.alibaba.com/product-detail/TZT-Type-C-USB-Nano-3_1600566932166.html) | 2 | $5.16 at the $2.58 upper listed price |
+| [TZT red Nano I/O sensor shield](https://www.alibaba.com/product-detail/TZT-NANO-V3-0-Adapter-Prototype_1601021706384.html) | 2 | $2.30 at the $1.15 upper listed price |
+| [30 cm male-to-female 40-wire Dupont ribbon](https://www.alibaba.com/product-detail/30cm-40pin-M-to-F-Color_1601699032813.html) | 1 | $0.32 |
+
+To finish below **$50 after 8.625% tax**, the entire checkout before tax,
+including shipping and fees, must be **$46.03 or less**. The $18.48 item
+subtotal therefore leaves **$27.55** for shipping, option-price differences,
+and payment fees. If checkout exceeds $46.03, this is not an under-$50 cart.
+Alibaba did not expose the final freight without completing all variant choices
+and account/CAPTCHA steps, so this remains a checkout target rather than a
+promised delivered price.
+
+Before paying, select and confirm all of the following in the cart:
+
+- Fourteen factory-wired `B10K` pots, not B100K. Confirm the expected WH148
+  body, 15 mm shaft, and XH2.54 three-pin plug in the selected variant.
+- Twenty `6000-2RS`, `10×26×8 mm` bearings. The design uses fourteen.
+- Two Nanos in the `328P-Welded-TYPE-C USB` option, or the equivalently named
+  option with both long header rows **already soldered**. The lowest displayed
+  price may instead be the version with loose headers.
+- Two fully assembled red boards matching this
+  [dimensioned 58×54 mm Nano-shield reference](https://bigganproject.bd/en/arduino/arduino-nano-io-expansion-shield-v3-red).
+  Select the pictured board with the two Nano socket rows and servo-style S/V/G
+  headers, not a Nano-to-Uno adapter. The word “UNO” in Alibaba's title is
+  misleading marketplace text; the controller socket in the pictured board is
+  for a Nano.
+- One `30cm`, `M to F`, `40P` jumper ribbon.
+
+As with the US estimate, this excludes filament and two USB-C data cables. All
+prices, stock, shipping, tax, and delivery dates can change at checkout.
 
 ## Complete BOM
 
 | Buy this exact type | Qty used | Package price | Shipping shown | Why this one |
 | --- | ---: | ---: | ---: | --- |
-| [Uxcell WH148 B10K linear pots, 20 cm factory wire, 3-pin JST-XH2.54, 10-pack](https://www.walmart.com/ip/17169514309) | 7 | $19.34 sale ($20.35 regular) | Free | Three spares; nominal 17 mm body, 7 mm bushing, 6 mm knurled shaft. Do not substitute switched 5-pin or logarithmic/audio-taper pots. |
+| [Uxcell WH148 B10K linear pots, 20 cm factory wire, 3-pin JST-XH2.54, 10-pack](https://www.walmart.com/ip/17169514309) | 7 | $20.35 | Free | Three spares; nominal 17 mm body, 7 mm bushing, 6 mm knurled shaft. Do not substitute switched 5-pin or logarithmic/audio-taper pots. |
 | [6000-2RS sealed bearings, 10×26×8 mm, 10-pack](https://www.ebay.com/itm/301956681716) | 7 | $11.25 | Free | Three spares. The larger 10 mm bore leaves a printable load-bearing wall around the 6 mm pot coupling. **608 bearings do not fit this design.** |
 | [Classic ATmega328P Nano, USB-C, headers already soldered](https://www.ebay.com/itm/205884861373) | 1 | $10.99 | Free | The listing must say **soldered**. A bare-header Nano defeats the no-solder goal. |
-| [Nano I/O expansion sensor shield](https://www.ebay.com/itm/201247537349) | 1 | $3.40 | Free | Match the pictured 58×54 mm red Nano shield with servo-style signal/5V/ground header rows. The seller's title mentions UNO, but the pictured socket is for a Nano. |
-| [30 cm male-to-female Dupont jumper wires, 40-pack](https://www.ebay.com/itm/256858362629) | 15 used (5 channels x 3) | about $7.69, **unverified** | Free shown, **unverified** | Five of the seven channels cannot reach the controller on a 20 cm lead; see [Plug-in wiring](#plug-in-wiring). Separate wires also sidestep the connector question below, because you place each wire on the right pin yourself. [3-pin servo extensions](https://www.ebay.com/itm/324926121235) are tidier if the two housings mate. |
+| [Nano I/O breakout expansion shield for Arduino Nano V3.0](https://www.ebay.com/itm/191840837411) | 1 | $6.19 | Free | **Use this with the Nano listed above; do not buy an Uno.** This is the pictured 58×54 mm red board with two long Nano socket rows and servo-style signal/5V/ground headers. |
+| [ZYLtech 30 cm male-to-female Dupont ribbon, 40 wires](https://www.ebay.com/itm/323860148081) | 15 used (5 channels × 3) | $4.95 | Free | Five of the seven channels cannot reach the controller on a 20 cm lead; see [Plug-in wiring](#plug-in-wiring). Peel off individual wires and place each one on the correct shield pin. |
 | PETG filament | about 500 g | Existing spool, or local purchase | — | PETG is required for the axle snaps, pot clips, and gripper flexure. Do not use brittle silk PLA. |
 | USB-C **data** cable | 1 | Reuse | — | Charge-only cables cannot upload firmware or stream positions. |
 | #8 or 4 mm wood screws | 4 optional | Reuse/buy locally | — | Only for fastening the base to a board; they drive into wood, so no nuts are used. A table clamp also works. |
+
+The linked red board is a breakout/carrier for an **Arduino Nano V3.0**: the
+Nano plugs into the two parallel sockets in its center. It is not an Uno shield,
+and an Arduino Uno cannot plug into it. Some generic listings mention Uno
+because the shield also breaks signals out around its edge in the classic
+Uno/Duemilanove layout; that does not change which controller fits the socket.
 
 The bearing listing is the price choice, not the design limit.
 [DigiKey's 6000-2RS data](https://www.digikey.com/en/products/detail/mechatronics-bearing-group/6000-2RS/9608370)
