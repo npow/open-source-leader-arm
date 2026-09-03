@@ -45,17 +45,26 @@ POT_BUSHING_CLEARANCE = 0.35
 POT_SHAFT_SOCKET_DIAMETER = 5.85
 NANO_SHIELD_EDGE_CLEARANCE = 0.60
 
-# Controller placement and assumed cable budget.  The seller does not specify
-# the factory lead length, so 200 mm is a modeling assumption to verify against
-# the delivered parts.  The chain is roughly 400 mm long; extensions are part
-# of the BOM and ``validate_cable_reach`` enforces the modeled budget.
-# The current tray intersects link 5 in a known folded wrist pose; the
-# regression test records that unresolved mechanical constraint.
-CONTROLLER_TRAY_CENTER = (30.0, 45.0, 225.0)
-CONTROLLER_PART_INDEX = 3  # simple_link_3 carries the shield tray
+# The Nano shield is fixed horizontally to a sidecar on the base.  Keeping the
+# controller and USB cable off the moving chain removes their mass and collision
+# envelope from the wrist.  ``CONTROLLER_TRAY_CENTER`` is the PCB centre, not
+# the floor below it.
+CONTROLLER_TRAY_CENTER = (-45.0, 0.0, 11.3)
+CONTROLLER_PART_INDEX = 0  # the fixed base carries the shield tray
+NANO_SHIELD_BOARD_THICKNESS = 1.6
+CONTROLLER_BOARD_BOTTOM_Z = 10.5
+CONTROLLER_ELECTRONICS_HEIGHT = 22.0
+
+# Assumed cable budget.  The seller does not specify the factory lead length,
+# so 200 mm is a modeling assumption to verify against the delivered parts.
+# Individual 300 mm M-to-F jumpers can be chained; the validation accounts for
+# every conductor consumed from the two 40-wire ribbons in the BOM.
 POT_LEAD_LENGTH = 200.0
 EXTENSION_LEAD_LENGTH = 300.0
-CABLE_ROUTING_FACTOR = 1.25  # the cable follows the links, not the straight line
+JUMPER_PACK_COUNT = 2
+JUMPER_PACK_WIRES = 40
+LEADER_COUNT = 2
+CABLE_ROUTING_FACTOR = 1.25  # extra contour/slack beyond the centerline polyline
 CABLE_SERVICE_LOOP = 35.0  # slack per rotating joint a run crosses
 CABLE_TERMINATION_ALLOWANCE = 20.0  # both connector bodies plus strain relief
 
@@ -101,16 +110,18 @@ NECK_LENGTH = 25.0
 # A compact leader is easier to move than a 1:1 replica.  Joint-space mapping
 # means the link lengths do not affect commanded follower angles.  The axis
 # order matches YAM: Z, Y, Y, Y, Z, X, followed by the gripper input on Y.
+UPPER_CHAIN_LIFT = 55.0
 JOINTS: Mapping[str, Tuple[Vector3, Vector3]] = {
-    # J1 points upward so its cable exits near the mid-arm controller.  The
-    # moving flange and link remain below the stationary sensor stack.
+    # J1 points upward so the moving flange and link remain below the stationary
+    # sensor stack.  J2 and the whole upper chain are raised so the complete J2
+    # and J3 printed-stop sweeps clear the base and controller electronics.
     "j1": ((35.0, 0.0, 40.0), (0.0, 0.0, 1.0)),
-    "j2": ((80.0, 0.0, 90.0), (0.0, 1.0, 0.0)),
-    "j3": ((80.0, 0.0, 175.0), (0.0, 1.0, 0.0)),
-    "j4": ((80.0, 0.0, 260.0), (0.0, 1.0, 0.0)),
-    "j5": ((25.0, 0.0, 300.0), (0.0, 0.0, 1.0)),
-    "j6": ((-35.0, 0.0, 340.0), (1.0, 0.0, 0.0)),
-    "j7": ((-35.0, 0.0, 395.0), (0.0, 1.0, 0.0)),
+    "j2": ((80.0, 0.0, 90.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
+    "j3": ((80.0, 0.0, 175.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
+    "j4": ((80.0, 0.0, 260.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
+    "j5": ((25.0, 0.0, 300.0 + UPPER_CHAIN_LIFT), (0.0, 0.0, 1.0)),
+    "j6": ((-35.0, 0.0, 340.0 + UPPER_CHAIN_LIFT), (1.0, 0.0, 0.0)),
+    "j7": ((-35.0, 0.0, 395.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
 }
 
 # Physical leader stops in degrees.  J1 deliberately uses 280 degrees of the
@@ -127,17 +138,9 @@ JOINT_LIMITS_DEG: Mapping[str, Tuple[float, float]] = {
 }
 
 
-# Where the base blocks a joint before its printed stop does.  J2's negative
-# swing drives link 2 and link 3 into the base plate at about -90 degrees, well
-# inside its declared -105.  This is a measured limitation of the link geometry,
-# not something the stops enforce, and the host mapping has to respect it or the
-# follower is commanded to a pose the leader cannot physically reach.
-BASE_LIMITED_RANGE_DEG: Mapping[str, Tuple[float, float]] = {
-    "j2": (-89.8, math.inf),
-    # J3 clears its declared -105 and only grazes the plate 2.5 degrees into the
-    # overtravel band, so this trims the overtravel rather than the spec.
-    "j3": (-107.4, math.inf),
-}
+# No joint is clipped by the base before its printed stop.  Keep this mapping so
+# a future base-dependent limit has one explicit source of truth.
+BASE_LIMITED_RANGE_DEG: Mapping[str, Tuple[float, float]] = {}
 
 
 def stop_pin_half_angle() -> float:
@@ -204,11 +207,7 @@ def _box(
     z_length: float,
     center: Vector3,
 ) -> cq.Workplane:
-    return (
-        cq.Workplane("XY")
-        .box(x_length, y_length, z_length)
-        .translate(center)
-    )
+    return cq.Workplane("XY").box(x_length, y_length, z_length).translate(center)
 
 
 def _cylinder_x(radius: float, length: float, x_start: float) -> cq.Workplane:
@@ -353,7 +352,9 @@ def build_socket() -> cq.Workplane:
     # after the joint is assembled; the factory-wired rear terminals remain
     # accessible through the large U-shaped back opening.
     socket = socket.union(
-        _box(holder_length, holder_width, 2.4, (holder_mid_x, 0.0, -holder_height / 2.0))
+        _box(
+            holder_length, holder_width, 2.4, (holder_mid_x, 0.0, -holder_height / 2.0)
+        )
     )
     for y_sign in (-1.0, 1.0):
         socket = socket.union(
@@ -480,7 +481,9 @@ def _stop_groove(lower_degrees: float, upper_degrees: float) -> cq.Workplane:
     )
 
 
-def build_plug(lower_degrees: float = -90.0, upper_degrees: float = 90.0) -> cq.Workplane:
+def build_plug(
+    lower_degrees: float = -90.0, upper_degrees: float = 90.0
+) -> cq.Workplane:
     """Build the moving flange, hollow snap axle, coupling, and hard-stop arc."""
 
     plug = _cylinder_x(FLANGE_RADIUS, FLANGE_THICKNESS, -FLANGE_THICKNESS)
@@ -721,6 +724,86 @@ def _link_1_sweep() -> cq.Workplane:
     return disc.union(band.cut(wedge))
 
 
+def controller_electronics_keepout() -> cq.Workplane:
+    """Conservative fixed envelope for the shield, Nano, plugs, and headers."""
+
+    center_x, center_y, _ = CONTROLLER_TRAY_CENTER
+    edge_access = 10.0
+    return _box(
+        NANO_SHIELD_LONG + edge_access * 2.0,
+        NANO_SHIELD_SHORT + edge_access * 2.0,
+        CONTROLLER_ELECTRONICS_HEIGHT,
+        (
+            center_x,
+            center_y,
+            CONTROLLER_BOARD_BOTTOM_Z + CONTROLLER_ELECTRONICS_HEIGHT / 2.0,
+        ),
+    )
+
+
+def _controller_sidecar() -> cq.Workplane:
+    """Low horizontal Nano-shield tray that is integral with the fixed base."""
+
+    center_x, center_y, _ = CONTROLLER_TRAY_CENTER
+    opening_half_x = NANO_SHIELD_LONG / 2.0 + NANO_SHIELD_EDGE_CLEARANCE
+    # Extend one millimetre beyond the outside of each clip post so every post
+    # grows from supported floor material rather than merely sharing its edge.
+    floor_x = NANO_SHIELD_LONG + NANO_SHIELD_EDGE_CLEARANCE * 2.0 + 8.0
+    floor_y = NANO_SHIELD_SHORT + NANO_SHIELD_EDGE_CLEARANCE * 2.0 + 4.0
+    floor = _box(
+        floor_x,
+        floor_y,
+        BASE_PLATE_THICKNESS,
+        (center_x, center_y, BASE_PLATE_THICKNESS / 2.0),
+    )
+
+    # Four pads hold the PCB above its solder joints instead of pressing its
+    # underside against a solid floor.
+    riser_height = CONTROLLER_BOARD_BOTTOM_Z - BASE_PLATE_THICKNESS
+    for x_sign in (-1.0, 1.0):
+        for y_sign in (-1.0, 1.0):
+            floor = floor.union(
+                _box(
+                    6.0,
+                    6.0,
+                    riser_height,
+                    (
+                        center_x + x_sign * (NANO_SHIELD_LONG / 2.0 - 4.0),
+                        center_y + y_sign * (NANO_SHIELD_SHORT / 2.0 - 4.0),
+                        BASE_PLATE_THICKNESS + riser_height / 2.0,
+                    ),
+                )
+            )
+
+    # Two clips per long edge flex outwards during insertion.  Their lips sit
+    # above the PCB with a small vertical allowance for marketplace variation.
+    post_width = 3.0
+    post_x = opening_half_x + post_width / 2.0
+    board_top = CONTROLLER_BOARD_BOTTOM_Z + NANO_SHIELD_BOARD_THICKNESS
+    lip_bottom = board_top + 0.30
+    lip_height = 1.40
+    post_bottom = BASE_PLATE_THICKNESS - 0.50
+    post_top = lip_bottom + lip_height
+    for x_sign in (-1.0, 1.0):
+        for y_offset in (-18.0, 18.0):
+            x = center_x + x_sign * post_x
+            y = center_y + y_offset
+            post = _box(
+                post_width,
+                6.0,
+                post_top - post_bottom,
+                (x, y, (post_top + post_bottom) / 2.0),
+            )
+            lip = _box(
+                5.0,
+                6.0,
+                lip_height,
+                (x - x_sign * 1.8, y, lip_bottom + lip_height / 2.0),
+            )
+            floor = floor.union(post).union(lip)
+    return floor.clean()
+
+
 def build_base() -> cq.Workplane:
     joint_center, joint_axis = JOINTS["j1"]
     base = _box(
@@ -753,16 +836,13 @@ def build_base() -> cq.Workplane:
     buttress = buttress.cut(_link_1_sweep())
     base = base.union(buttress)
     base = base.union(_joint_socket("j1"))
+    base = base.union(_controller_sidecar())
 
     # Four ordinary wood screws can secure the base to a board;
     # they drive into the board directly and do not require nuts.
     for x in (-47.0, 47.0):
         for y in (-37.0, 37.0):
-            hole = (
-                cq.Workplane("XY", origin=(x, y, -0.1))
-                .circle(2.2)
-                .extrude(8.2)
-            )
+            hole = cq.Workplane("XY", origin=(x, y, -0.1)).circle(2.2).extrude(8.2)
             base = base.cut(hole)
     return base.clean()
 
@@ -793,41 +873,9 @@ def build_link_6() -> cq.Workplane:
 
 
 def build_link_3() -> cq.Workplane:
-    part = _link("j3", "j4")
-    # The controller sits near the chain midpoint to keep every sensor run as
-    # short as possible; ``validate_cable_reach`` says which channels still need
-    # an extension lead.  Four low corner clips retain the standard Nano I/O
-    # shield without tape, screws, nuts, or a separate enclosure.
-    tray_long = NANO_SHIELD_LONG + NANO_SHIELD_EDGE_CLEARANCE * 2.0
-    tray_short = NANO_SHIELD_SHORT + NANO_SHIELD_EDGE_CLEARANCE * 2.0
-    tray_center = CONTROLLER_TRAY_CENTER
-    # Everything below follows the tray constant, including which side of the
-    # link it hangs on, so moving the tray moves its mounts and clips with it.
-    side = 1.0 if tray_center[1] >= 0.0 else -1.0
-    part = part.union(_box(tray_long + 4.0, 2.4, tray_short + 4.0, tray_center))
-    # Two short side standoffs attach the tray to link 3 while leaving the
-    # neighbouring links' swept volume clear at the assembly zero pose.
-    beam_x = JOINTS["j4"][0][0]
-    standoff_x = tray_center[0] + 30.0
-    for z in (tray_center[2] - 17.0, tray_center[2]):
-        part = part.union(
-            _cylinder_between(
-                (beam_x, 0.0, z), (standoff_x, tray_center[1], z), 3.0
-            )
-        )
-    for x_sign in (-1.0, 1.0):
-        for z_sign in (-1.0, 1.0):
-            x = tray_center[0] + x_sign * (tray_long / 2.0 + 1.0)
-            z = tray_center[2] + z_sign * (tray_short / 2.0 + 1.0)
-            post = _box(3.0, 7.0, 8.0, (x, tray_center[1] + side * 2.3, z))
-            lip = _box(
-                5.0,
-                1.4,
-                5.0,
-                (x - x_sign * 1.0, tray_center[1] + side * 5.9, z - z_sign * 1.0),
-            )
-            part = part.union(post).union(lip)
-    return part.clean()
+    """Link 3 is only structural; all controller hardware stays on the base."""
+
+    return _link("j3", "j4")
 
 
 def build_gripper_lever() -> cq.Workplane:
@@ -892,28 +940,45 @@ def _pot_terminal(joint: str) -> Vector3:
 
 
 def cable_runs() -> Dict[str, Dict[str, float]]:
-    """Length of lead each channel needs to reach the controller tray.
+    """Length and jumper count each channel needs to reach the fixed base.
 
     Joint ``jN``'s potentiometer is carried by the socket side of that joint,
     which is part ``N - 1``, so the number of rotating joints a run crosses is
     its distance along the chain from the part holding the tray.  Each crossing
     needs a service loop or the cable becomes a spring the joint has to fight.
+    The route follows the intervening joint centres rather than using a false
+    straight chord through open space.
     """
 
     runs: Dict[str, Dict[str, float]] = {}
-    for index, joint in enumerate(JOINTS):
+    joint_names = tuple(JOINTS)
+    for index, joint in enumerate(joint_names):
         crossings = abs(index - CONTROLLER_PART_INDEX)
-        straight = _norm(_v_sub(CONTROLLER_TRAY_CENTER, _pot_terminal(joint)))
+        route_points = [_pot_terminal(joint)]
+        route_points.extend(
+            JOINTS[joint_names[anchor_index]][0]
+            for anchor_index in range(index - 1, -1, -1)
+        )
+        route_points.append(CONTROLLER_TRAY_CENTER)
+        centerline_route = sum(
+            _norm(_v_sub(end, start))
+            for start, end in zip(route_points, route_points[1:])
+        )
         required = (
-            straight * CABLE_ROUTING_FACTOR
+            centerline_route * CABLE_ROUTING_FACTOR
             + CABLE_SERVICE_LOOP * crossings
             + CABLE_TERMINATION_ALLOWANCE
         )
+        extension_count = max(
+            0,
+            math.ceil((required - POT_LEAD_LENGTH) / EXTENSION_LEAD_LENGTH),
+        )
         runs[joint] = {
-            "straight_mm": straight,
+            "route_mm": centerline_route,
             "joints_crossed": float(crossings),
             "required_mm": required,
-            "needs_extension": float(required > POT_LEAD_LENGTH),
+            "extension_count": float(extension_count),
+            "needs_extension": float(extension_count > 0),
         }
     return runs
 
@@ -921,19 +986,20 @@ def cable_runs() -> Dict[str, Dict[str, float]]:
 def extension_channels() -> Tuple[str, ...]:
     """Channels whose factory lead alone cannot reach the tray."""
 
-    return tuple(
-        joint for joint, run in cable_runs().items() if run["needs_extension"]
-    )
+    return tuple(joint for joint, run in cable_runs().items() if run["needs_extension"])
 
 
 def validate_cable_reach() -> None:
-    budget = POT_LEAD_LENGTH + EXTENSION_LEAD_LENGTH
-    for joint, run in cable_runs().items():
-        if run["required_mm"] > budget:
-            raise RuntimeError(
-                f"{joint} needs about {run['required_mm']:.0f} mm of lead to "
-                f"reach the controller but the budget is {budget:.0f} mm"
-            )
+    runs = cable_runs()
+    wires_used = int(
+        sum(run["extension_count"] for run in runs.values()) * 3 * LEADER_COUNT
+    )
+    wires_bought = JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
+    if wires_used > wires_bought:
+        raise RuntimeError(
+            f"the two leaders need {wires_used} individual jumper wires under "
+            f"the modeled lead assumption but the BOM provides {wires_bought}"
+        )
 
 
 def build_parts() -> Dict[str, cq.Workplane]:
@@ -963,7 +1029,9 @@ def validate_parts(parts: Mapping[str, cq.Workplane]) -> None:
     for name, part in parts.items():
         solids = part.solids().vals()
         if len(solids) != 1:
-            raise RuntimeError(f"{name} must be one connected solid, found {len(solids)}")
+            raise RuntimeError(
+                f"{name} must be one connected solid, found {len(solids)}"
+            )
         if not part.val().isValid():
             raise RuntimeError(f"{name} is not a valid CAD solid")
         if part.val().Volume() < 1200.0:
@@ -978,7 +1046,12 @@ def validate_parts(parts: Mapping[str, cq.Workplane]) -> None:
 def _print_orientation(name: str, part: cq.Workplane) -> cq.Workplane:
     if name in {"simple_link_1", "simple_link_5", "simple_base"}:
         printable = part
-    elif name in {"simple_link_2", "simple_link_3", "simple_link_4", "simple_gripper_lever"}:
+    elif name in {
+        "simple_link_2",
+        "simple_link_3",
+        "simple_link_4",
+        "simple_gripper_lever",
+    }:
         printable = part.rotate((0, 0, 0), (1, 0, 0), 90)
     elif name == "simple_link_6":
         printable = part.rotate((0, 0, 0), (0, 1, 0), -90)
@@ -1035,17 +1108,28 @@ def main() -> None:
     validate_parts(parts)
     if not args.validate_only:
         export_parts(parts, args.output_dir)
-        print(f"Exported {len(parts)} structural parts plus joint_fit_test to {args.output_dir}")
-    needs = extension_channels()
-    print("Cable budget (assumed factory lead is " f"{POT_LEAD_LENGTH:.0f} mm):")
-    for joint, run in cable_runs().items():
-        flag = " EXTENSION" if run["needs_extension"] else ""
         print(
-            f"  {joint}: {run['straight_mm']:6.1f} mm direct, "
+            f"Exported {len(parts)} structural parts plus joint_fit_test "
+            f"to {args.output_dir}"
+        )
+    needs = extension_channels()
+    print(
+        "Cable budget to fixed base (assumed factory lead is "
+        f"{POT_LEAD_LENGTH:.0f} mm):"
+    )
+    for joint, run in cable_runs().items():
+        extensions = int(run["extension_count"])
+        flag = f", {extensions} jumper segment(s)" if extensions else ", direct"
+        print(
+            f"  {joint}: {run['route_mm']:6.1f} mm centerline route, "
             f"{int(run['joints_crossed'])} joints crossed, "
             f"{run['required_mm']:6.1f} mm needed{flag}"
         )
-    print(f"{len(needs)} of {len(cable_runs())} channels need an extension lead: {', '.join(needs)}")
+    wire_count = int(sum(run["extension_count"] for run in cable_runs().values()) * 3)
+    print(
+        f"{len(needs)} channels use extensions: {', '.join(needs)}; "
+        f"{wire_count} individual jumper wires per leader"
+    )
 
 
 if __name__ == "__main__":

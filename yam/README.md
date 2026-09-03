@@ -14,7 +14,7 @@ workspace. Print and pull-test the coupon before committing to the full arm.
 
 This is the shopping list. Put the stated total quantity in the cart; the
 quantities are for **both leaders together**, not per leader. Prices and links
-were checked on **September 2, 2026**.
+were checked on **September 3, 2026**.
 
 | Buy this item | Cart quantity | Select exactly this option |
 | --- | ---: | --- |
@@ -25,12 +25,12 @@ were checked on **September 2, 2026**.
 | [30 cm male-to-female Dupont ribbon, 40 wires](https://www.alibaba.com/product-detail/30cm-40pin-M-to-F-Color_1601699032813.html) | **2 ribbons** | `30cm`, `M to F`, `40P` |
 
 **Buy two jumper ribbons.** A `40P` ribbon is forty separate one-conductor
-jumper wires joined side by side; it is not forty three-wire cables. If the pot
-leads are 20 cm long, five joints per leader need extensions, so the two arms
-use 5 joints × 3 wires × 2 leaders = **30 jumper wires**. However, the cheap pot
-listing does not specify its lead length. If all fourteen pots need extensions,
-they require **42 wires**. Two ribbons provide 80, cover either case, and cost
-only $0.32 more than one.
+jumper wires joined side by side; it is not forty three-wire cables. With the
+controller fixed at the base and the CAD's 200 mm pot-lead assumption, one arm
+uses twelve three-wire extension segments, or **36 individual jumper wires**.
+Two arms use 72; the two ribbons provide 80. Some channels use three 30 cm
+segments chained end to end. The pot listing does not state the pigtail length:
+if the delivered leads are shorter than about 150 mm, add a third ribbon.
 
 A cart containing exactly those quantities showed a **$17.94 item
 subtotal**, **−$0.60 item discount**, **$26.16 shipping**, and **−$11.16
@@ -42,9 +42,9 @@ Alibaba says the exact import charge appears at checkout, so use the final
 charged total as the deciding number. Prices and discounts can change.
 
 Also have one **1 kg spool of PETG**, **two USB-C data cables**, and either eight
-#8 (about 4 mm) wood screws or two table clamps. The CAD's total solid volume
-is about 251 cm³ per leader, so a 1 kg spool leaves margin for the coupon and
-supports.
+#8 (about 4 mm) wood screws or two table clamps. Keep small reusable cable ties
+or electrical tape for strain relief. The CAD's total solid volume is about
+258 cm³ per leader, so a 1 kg spool leaves margin for the coupon and supports.
 
 ## Print
 
@@ -63,10 +63,10 @@ remain behind the bearing's inner race and the printed wall must not crack.
 One leader uses one copy of each file below; **print two copies of every file
 for two leaders**:
 
-1. [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl)
+1. [`simple_base.stl`](simple_cad/generated/stl/simple_base.stl), including the fixed controller tray
 2. [`simple_link_1.stl`](simple_cad/generated/stl/simple_link_1.stl)
 3. [`simple_link_2.stl`](simple_cad/generated/stl/simple_link_2.stl)
-4. [`simple_link_3.stl`](simple_cad/generated/stl/simple_link_3.stl), including the controller tray
+4. [`simple_link_3.stl`](simple_cad/generated/stl/simple_link_3.stl)
 5. [`simple_link_4.stl`](simple_cad/generated/stl/simple_link_4.stl)
 6. [`simple_link_5.stl`](simple_cad/generated/stl/simple_link_5.stl)
 7. [`simple_link_6.stl`](simple_cad/generated/stl/simple_link_6.stl), including the fixed gripper jaw
@@ -119,9 +119,11 @@ Do one joint at a time:
 
 ### 3. Install the Nano shield and Nano
 
-![How the shield and Nano fit the controller tray on link 3](docs/images/assembly-controller-sequence.png)
+![How the shield and Nano fit the fixed tray on the base](docs/images/assembly-controller-sequence.png)
 
-1. Clip the red 58×54 mm Nano I/O shield flat into the tray on link 3.
+1. Rotate the red 58×54 mm Nano I/O shield so the Nano's USB connector will
+   face outward, away from the J1 pedestal, then press the shield flat into the
+   four clips on the base.
 2. Match the labels on the Nano to the labels beside the shield sockets—for
    example, `VIN` to `VIN` and `GND` to `GND`. USB-connector direction alone is
    not a reliable guide.
@@ -133,6 +135,13 @@ Do one joint at a time:
 
 Clamp the base to the table or use its four mounting holes and four #8 (about
 4 mm) wood screws. Secure it before moving the arm through its range.
+
+![Neutral and compact folded poses with the controller fixed on the base](docs/images/assembly-folded-clearance.png)
+
+Before routing wires permanently, move slowly into the pictured compact fold:
+J2 −105°, J3 +105°, J4 −90°, J5 −90°, J6 −120°, and the gripper closed. The
+CAD collision test checks this fold at five J1 yaw positions. Stop rather than
+force the arm if a real printed part, board, or cable catches.
 
 The snap axles are serviceable but not intended for repeated disassembly. To
 remove one, first remove the pot, squeeze both axle shoulders inward through
@@ -179,32 +188,37 @@ shield barrel jack or an external servo supply.
 The pot seller does **not** specify the factory lead length. The CAD uses a
 200 mm assumption, so measure the actual leads when they arrive.
 
-- At 200 mm, extend J1, J2, J5, J6, and J7: five three-wire groups per leader.
-- If every lead is shorter, all seven channels may need extensions: 21 wires
-  per leader, or 42 for two leaders.
-- That is why the shopping list says **two 40-wire ribbons**. Peel off groups
-  of three; the two ribbons provide 80 individual wires.
-- J7 needs about 353 mm total in the CAD model. If its factory lead is shorter
-  than roughly 55 mm, one 300 mm extension is not long enough.
+- At 200 mm, J1 reaches directly; J2 and J3 use one 30 cm three-wire segment;
+  J4 and J5 use two segments; J6 and J7 use three segments chained end to end.
+- That consumes 36 individual jumper wires per leader and 72 for two leaders.
+  Peel the ribbon into groups of three and join male to female where a second
+  or third segment is required.
+- Two 40-wire ribbons provide 80 wires and therefore eight spares under that
+  assumption. If the delivered pot pigtails are shorter than about 150 mm, buy a
+  third ribbon.
 
 Leave a loose loop at every moving joint. A taut wire acts like a spring and
-can distort the reading.
+can distort the reading. Put male-to-female junctions on straight link sections,
+not inside a bending loop, and secure each junction so normal motion cannot pull
+it apart.
 
 <details>
 <summary>CAD cable-length calculation</summary>
 
-| Channel | Direct distance | Moving joints crossed | Total lead needed |
-| --- | ---: | ---: | ---: |
-| J1 | 157 mm | 3 | 321 mm |
-| J2 | 144 mm | 2 | 270 mm |
-| J3 | 71 mm | 1 | 144 mm |
-| J4 | 62 mm | 0 | 97 mm |
-| J5 | 119 mm | 1 | 204 mm |
-| J6 | 127 mm | 2 | 249 mm |
-| J7 | 182 mm | 3 | 353 mm |
+| Channel | Centerline route | Moving joints crossed | Total lead needed | 30 cm jumper segments at 200 mm |
+| --- | ---: | ---: | ---: | ---: |
+| J1 | 102 mm | 0 | 148 mm | 0 |
+| J2 | 205 mm | 1 | 311 mm | 1 |
+| J3 | 291 mm | 2 | 454 mm | 1 |
+| J4 | 376 mm | 3 | 595 mm | 2 |
+| J5 | 462 mm | 4 | 738 mm | 2 |
+| J6 | 484 mm | 5 | 801 mm | 3 |
+| J7 | 575 mm | 6 | 948 mm | 3 |
 
-The total includes 25% routing allowance, a 35 mm service loop for each moving
-joint crossed, and 20 mm for connectors and strain relief.
+The centerline route follows each intervening joint rather than cutting
+straight through space. The total then adds 25% routing allowance, a 35 mm
+service loop for every moving joint crossed, and 20 mm for connectors and
+strain relief.
 
 </details>
 
@@ -259,14 +273,13 @@ Never configure both sides to use the same serial or CAN device.
 
 - Print and pull-test the coupon. FDM fit and snap strength vary by printer,
   PETG, cooling, and layer adhesion; this design has no certified load rating.
-- J2 contacts the base at about −89.8°, about 15° before its nominal −105°
-  stop. Do not force it; that end of the follower range is unavailable with the
-  default midpoint mapping.
-- Some folded J4/J5 combinations bring link 5 into the controller tray. During
-  first testing, move the wrist joints slowly and one at a time, then inspect
-  the real board, wires, and service loops throughout the intended workspace.
-- Only the printed tray is included in CAD collision checks. The exact
-  marketplace shield, plugged-in Nano, connectors, and wires are not modelled.
+- The redesigned J2 reaches its complete printed-stop range, and the fixed
+  controller clears the checked wrist-corner and compact-fold poses. These
+  samples do not prove that every arbitrary multi-joint combination is free of
+  self-collision; move slowly and never force a fold.
+- Collision tests include a conservative 78×74×22 mm envelope for the shield,
+  Nano, headers, and plugs. The exact marketplace parts and flexible wire paths
+  still require physical inspection.
 - WH148 carbon potentiometers are inexpensive wear parts, not precision
   encoders. Verify linearity, backlash, electrical travel, and connector grip.
 - This is prototype hand-input equipment, not a payload support or a

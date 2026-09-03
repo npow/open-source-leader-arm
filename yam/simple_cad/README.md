@@ -16,7 +16,7 @@ python yam/simple_cad/render_assembly_guides.py
 PYTHONPATH=yam/simple_cad pytest -q yam/simple_cad/test_simple_leader.py
 ```
 
-The renderer creates the four README figures in `yam/docs/images` from the
+The renderer creates the five README figures in `yam/docs/images` from the
 same printed-part geometry. Purchased bearings, pots, and boards are shown as
 dimensioned stand-ins rather than scanned manufacturer models.
 
@@ -24,16 +24,15 @@ Generation refuses to export unless all eight final parts are connected valid
 solids, adjacent rigid parts do not interfere in the assembly zero pose, and
 every potentiometer channel fits the documented cable budget.
 
-The test suite moves each joint individually across the travel the hardware
-actually permits—the printed stops, less the stop pin's own width, further
-clipped where the base blocks the joint first—with the entire distal chain
-attached. It checks every pair of the eight parts rather than only neighbours,
-plus several selected wrist poses.
+The test suite moves each joint individually across its complete printed-stop
+travel with the entire distal chain attached. It checks every pair of the eight
+parts rather than only neighbours, and it includes the fixed controller's
+78×74×22 mm electronics envelope.
 
-It does not exhaustively sample multi-joint combinations or prove a
-self-collision-free workspace. Dedicated regression tests instead record two
-known constraints: J2 reaches the base before its nominal stop, and some folded
-J4/J5 poses intersect the controller tray.
+Additional regressions cover all 27 nominal J4/J5/J6 corner combinations,
+shoulder folds across five J1 yaw samples, the former tray-collision pose, and a
+compact six-joint fold across the yaw range. They do not exhaustively sample
+continuous multi-joint space or prove a self-collision-free workspace.
 
 The gripper's leaf/post overlap is excluded from the pair checks and tested on
 its own, because that overlap is the intended elastic spring engagement.
@@ -64,26 +63,29 @@ of glue.
 ## Cable budget
 
 The linked seller does not specify the potentiometer lead length. The model
-uses a 200 mm assumption, and the chain is about 400 mm long, so some channels
-need extensions. `cable_runs()` computes each requirement,
-`validate_cable_reach` fails generation if any channel exceeds the assumed lead
-plus one extension, and running the build prints the table.
+uses a 200 mm assumption. The controller is fixed at the base, so distant
+channels chain as many as three 300 mm male-to-female jumper segments. `cable_runs()`
+computes each length and segment count; `validate_cable_reach` fails generation
+if two leaders consume more individual conductors than the two 40-wire ribbons
+in the BOM provide.
 
 | Constant | Default | Meaning |
 | --- | ---: | --- |
-| `CONTROLLER_TRAY_CENTER` | (30, 45, 225) | Where the Nano shield sits, on link 3 |
+| `CONTROLLER_TRAY_CENTER` | (-45, 0, 11.3) | PCB centre on the fixed base sidecar |
 | `POT_LEAD_LENGTH` | 200 | Assumed factory lead; measure the delivered parts |
-| `EXTENSION_LEAD_LENGTH` | 300 | One extension lead from the BOM |
-| `CABLE_ROUTING_FACTOR` | 1.25 | Allowance for following the links |
+| `EXTENSION_LEAD_LENGTH` | 300 | Length of one M-to-F jumper segment |
+| `JUMPER_PACK_COUNT` | 2 | Number of ribbons for two leaders |
+| `JUMPER_PACK_WIRES` | 40 | Individual conductors per ribbon |
+| `CABLE_ROUTING_FACTOR` | 1.25 | Additional routing slack over the joint-by-joint centerline path |
 | `CABLE_SERVICE_LOOP` | 35 | Slack per rotating joint a run crosses |
 | `CABLE_TERMINATION_ALLOWANCE` | 20 | Connector bodies and strain relief |
 
-Under the 200 mm assumption, five channels need an extension: J1, J2, J5, J6,
-and J7. Two 40-wire ribbons cover all fourteen three-wire channels if every
-delivered lead turns out to need extending. A J7 factory lead shorter than
-about 55 mm needs more than one 300 mm extension.
+Under the 200 mm assumption, J1 reaches directly, J2/J3 use one segment, J4/J5
+use two, and J6/J7 use three. That is 36 individual jumper wires per leader and
+72 for two, leaving eight spares. Leads shorter than about 150 mm exceed the
+two-ribbon count and require a third ribbon.
 
-## Base pedestal
+## Fixed base and controller
 
 The base reaches the J1 socket through the wedge of azimuth that link 1 never
 sweeps. `_link_1_sweep` derives that wedge from J1's permitted travel and the
@@ -92,32 +94,32 @@ the flange sweep and the socket, around z = 38, is the governing structural
 section of the entire machine: about 470 mm^2, against 77 mm^2 for the pair of
 6 mm columns it replaced.
 
+The horizontal Nano-shield sidecar is integral with the base, producing a
+133.6×90 mm print footprint. Four risers leave clearance for solder joints on
+the shield underside and four flexible clips retain its long edges. The PCB is
+oriented with the Nano USB connector facing outwards, away from J1. The
+controller and USB cable therefore remain stationary as every joint moves.
+
+J2 and the complete upper chain are 55 mm higher than the rejected prototype.
+That restores the complete J2 and J3 printed-stop sweeps while clearing the
+base and the controller electronics envelope.
+
 ## Parametric limits
 
 `JOINT_LIMITS_DEG` defines the printed pin-and-arc stops. J1 is ±140°, J2/J3
 are ±105°, J4/J5 are ±90°, J6 is ±120°, and the gripper is 0–45°. J1's host
 mapping scales 280° of safe leader travel to the follower's 325° range.
 
-Three ranges matter here and they are not the same. `JOINT_LIMITS_DEG` is the
-declared range. `stop_limited_range` adds the groove clearance and subtracts the
-stop pin's own half-width, giving what the printed stops really permit, because
-the pin stops on its edge rather than its centre. `usable_range` clips that
-further wherever `BASE_LIMITED_RANGE_DEG` records the base blocking a joint
-first, which today is J2's negative swing at about −90° instead of −105°.
+`JOINT_LIMITS_DEG` is the declared range. `stop_limited_range` adds the groove
+clearance and subtracts the stop pin's own half-width, giving what the printed
+stops really permit because the pin stops on its edge rather than its centre.
+`usable_range` can clip that further if `BASE_LIMITED_RANGE_DEG` records a
+future base obstruction; the redesigned geometry currently needs no such clip.
 
-Two limitations are recorded by tests rather than fixed, because both need
-joints or mounts moved rather than a constant tuned:
-
-- **J2** reaches the base plate at about −90°, inside its declared −105°. The
-  bare plate causes it, so the pedestal neither created nor worsened it within
-  the declared range.
-- **The controller tray** sits inside part of the shell link 5 sweeps about J4,
-  so some folded J4/J5 combinations drive link 5 into it. A replacement tray
-  position has not yet been physically validated.
-
-`test_base_blocks_j2_before_its_printed_stop` and
-`test_controller_tray_sits_inside_the_wrist_envelope` assert that both are still
-true, so neither can quietly change without someone noticing.
+`test_j2_reaches_its_full_printed_stop_without_hitting_the_base` rejects the old
+shoulder obstruction. `test_controller_is_fixed_to_the_base_and_old_wrist_collision_is_clear`
+rejects the old moving-tray obstruction, and the fold-grid tests keep both from
+returning unnoticed.
 
 If link positions, controller location, joint envelope, beam radius, or stop
 ranges change, rerun the complete collision suite and regenerate every STEP and

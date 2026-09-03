@@ -18,10 +18,10 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Circle, FancyBboxPatch, Patch, Rectangle
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
 from build_simple_leader import (
+    CONTROLLER_TRAY_CENTER,
+    JOINTS,
+    NANO_SHIELD_BOARD_THICKNESS,
     NANO_SHIELD_LONG,
     NANO_SHIELD_SHORT,
     PART_ORDER,
@@ -31,12 +31,14 @@ from build_simple_leader import (
     POT_BUSHING_DIAMETER,
     POT_SHAFT_DIAMETER,
     POT_SHAFT_PROJECTION,
-    build_link_3,
+    _v_add,
+    build_base,
     build_parts,
     build_plug,
     build_socket,
 )
-
+from matplotlib.patches import Circle, FancyBboxPatch, Patch, Rectangle
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 PRINT_COLORS = (
     "#2563eb",
@@ -49,10 +51,10 @@ PRINT_COLORS = (
     "#ec4899",
 )
 PART_LABELS = (
-    "1  base",
+    "1  base + fixed controller tray",
     "2  link 1",
     "3  link 2",
-    "4  link 3 + controller tray",
+    "4  link 3",
     "5  link 4",
     "6  link 5",
     "7  link 6 + fixed grip",
@@ -65,7 +67,9 @@ RED = "#dc2626"
 BLACK = "#111827"
 
 
-def _mesh(shape: cq.Workplane, tolerance: float = 0.55) -> tuple[np.ndarray, np.ndarray]:
+def _mesh(
+    shape: cq.Workplane, tolerance: float = 0.55
+) -> tuple[np.ndarray, np.ndarray]:
     vertices, triangles = shape.val().tessellate(tolerance)
     return (
         np.asarray([vertex.toTuple() for vertex in vertices]),
@@ -119,12 +123,7 @@ def _finish_3d(
 
 
 def _ring_x(outer_radius: float, inner_radius: float, width: float) -> cq.Workplane:
-    return (
-        cq.Workplane("YZ")
-        .circle(outer_radius)
-        .circle(inner_radius)
-        .extrude(width)
-    )
+    return cq.Workplane("YZ").circle(outer_radius).circle(inner_radius).extrude(width)
 
 
 def _cylinder_x(radius: float, length: float, start: float) -> cq.Workplane:
@@ -164,11 +163,14 @@ def render_part_order(output_path: Path) -> None:
         handlelength=1.5,
         handleheight=1.2,
     )
-    figure.suptitle("Printed-part order — actual assembled CAD", fontsize=19, weight="bold")
+    figure.suptitle(
+        "Printed-part order — actual assembled CAD", fontsize=19, weight="bold"
+    )
     figure.text(
         0.5,
         0.02,
-        "Build upward in order 1 → 8. Each color is one STL and one connected printed part.",
+        "Build upward in order 1 → 8. Each color is one STL and one "
+        "connected printed part.",
         ha="center",
         fontsize=11,
         color="#374151",
@@ -188,14 +190,18 @@ def _joint_panel(axis, step: int) -> None:
         moved_bearing = bearing.translate((-22.0, 0.0, 0.0))
         vertices.append(_add_shape(axis, socket, GRAY, alpha=0.75))
         vertices.append(_add_shape(axis, moved_bearing, STEEL))
-        axis.quiver(-12, -18, 0, 11, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.25)
+        axis.quiver(
+            -12, -18, 0, 11, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.25
+        )
         title = "1  Press bearing into the open side"
     elif step == 2:
         moved_plug = plug.translate((-34.0, 0.0, 0.0))
         vertices.append(_add_shape(axis, socket, GRAY, alpha=0.55))
         vertices.append(_add_shape(axis, bearing, STEEL))
         vertices.append(_add_shape(axis, moved_plug, BLUE))
-        axis.quiver(-18, -20, 0, 17, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.22)
+        axis.quiver(
+            -18, -20, 0, 17, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.22
+        )
         title = "2  Push the child axle through until both tabs click"
     else:
         lifted_pot = pot.translate((0.0, 0.0, 28.0))
@@ -204,8 +210,12 @@ def _joint_panel(axis, step: int) -> None:
         vertices.append(_add_shape(axis, plug, BLUE, alpha=0.90))
         vertices.append(_add_shape(axis, pot, "#92400e", alpha=0.16, edge="#92400e"))
         vertices.append(_add_shape(axis, lifted_pot, "#92400e"))
-        axis.quiver(28, -19, 24, 0, 0, -20, color=BLUE, linewidth=3, arrow_length_ratio=0.22)
-        axis.quiver(19, -19, 28, -9, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.28)
+        axis.quiver(
+            28, -19, 24, 0, 0, -20, color=BLUE, linewidth=3, arrow_length_ratio=0.22
+        )
+        axis.quiver(
+            19, -19, 28, -9, 0, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.28
+        )
         title = "3  Insert the shaft, then lower the pot into its cradle"
 
     _finish_3d(axis, vertices, elev=17, azim=-72)
@@ -236,49 +246,72 @@ def render_joint_sequence(output_path: Path) -> None:
     plt.close(figure)
 
 
-def _board(center_y: float) -> tuple[cq.Workplane, Sequence[cq.Workplane]]:
+def _board(center_z: float) -> tuple[cq.Workplane, Sequence[cq.Workplane]]:
+    center_x, center_y, _ = CONTROLLER_TRAY_CENTER
     board = (
         cq.Workplane("XY")
-        .box(NANO_SHIELD_LONG, 1.6, NANO_SHIELD_SHORT)
-        .translate((30.0, center_y, 225.0))
+        .box(NANO_SHIELD_LONG, NANO_SHIELD_SHORT, NANO_SHIELD_BOARD_THICKNESS)
+        .translate((center_x, center_y, center_z))
     )
     sockets = tuple(
         cq.Workplane("XY")
-        .box(2.4, 3.2, 39.0)
-        .translate((30.0 + x, center_y + 2.1, 225.0))
-        for x in (-8.0, 8.0)
+        .box(39.0, 2.4, 3.2)
+        .translate((center_x, center_y + y, center_z + 2.4))
+        for y in (-8.0, 8.0)
     )
     return board, sockets
 
 
-def _nano(center_y: float) -> cq.Workplane:
+def _nano(center_z: float) -> cq.Workplane:
+    center_x, center_y, _ = CONTROLLER_TRAY_CENTER
     return (
         cq.Workplane("XY")
-        .box(18.0, 1.6, 45.0)
-        .translate((30.0, center_y, 225.0))
+        .box(45.0, 18.0, 1.6)
+        .translate((center_x, center_y, center_z))
     )
 
 
 def _controller_panel(axis, step: int) -> None:
-    link = build_link_3()
-    final_board, final_sockets = _board(48.0)
-    vertices = [_add_shape(axis, link, GRAY)]
+    base = build_base()
+    final_z = CONTROLLER_TRAY_CENTER[2]
+    final_board, final_sockets = _board(final_z)
+    vertices = [_add_shape(axis, base, GRAY)]
     if step == 1:
-        moved_board, moved_sockets = _board(76.0)
+        moved_board, moved_sockets = _board(final_z + 38.0)
         vertices.append(_add_shape(axis, moved_board, RED))
         for socket in moved_sockets:
             vertices.append(_add_shape(axis, socket, BLACK))
-        axis.quiver(30, 70, 225, 0, -20, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.22)
-        title = "1  Snap the red shield flat into the four tray clips"
+        axis.quiver(
+            CONTROLLER_TRAY_CENTER[0],
+            CONTROLLER_TRAY_CENTER[1],
+            final_z + 31.0,
+            0,
+            0,
+            -24,
+            color=BLUE,
+            linewidth=3,
+            arrow_length_ratio=0.22,
+        )
+        title = "1  Press the shield down into the four base clips"
     else:
         vertices.append(_add_shape(axis, final_board, RED))
         for socket in final_sockets:
             vertices.append(_add_shape(axis, socket, BLACK))
-        moved_nano = _nano(77.0)
+        moved_nano = _nano(final_z + 33.0)
         vertices.append(_add_shape(axis, moved_nano, BLUE))
-        axis.quiver(30, 70, 225, 0, -17, 0, color=BLUE, linewidth=3, arrow_length_ratio=0.24)
+        axis.quiver(
+            CONTROLLER_TRAY_CENTER[0],
+            CONTROLLER_TRAY_CENTER[1],
+            final_z + 28.0,
+            0,
+            0,
+            -21,
+            color=BLUE,
+            linewidth=3,
+            arrow_length_ratio=0.24,
+        )
         title = "2  Align both Nano rows, then press straight into the sockets"
-    _finish_3d(axis, vertices, elev=10, azim=6, zoom=1.24)
+    _finish_3d(axis, vertices, elev=30, azim=-52, zoom=1.18)
     axis.set_title(title, fontsize=12, weight="bold", pad=10)
 
 
@@ -287,16 +320,78 @@ def render_controller_sequence(output_path: Path) -> None:
     for step in (1, 2):
         axis = figure.add_subplot(1, 2, step, projection="3d", proj_type="ortho")
         _controller_panel(axis, step)
-    figure.suptitle("Controller installation on link 3", fontsize=18, weight="bold")
+    figure.suptitle(
+        "Controller installation on the fixed base", fontsize=18, weight="bold"
+    )
     figure.text(
         0.5,
         0.015,
-        "The red and blue boards are dimensioned stand-ins; the gray tray and link are the actual CAD.",
+        "The red and blue boards are dimensioned stand-ins; the gray base "
+        "and tray are the actual CAD.",
         ha="center",
         fontsize=10.5,
         color="#374151",
     )
     figure.tight_layout(rect=(0.0, 0.04, 1.0, 0.93), w_pad=0.4)
+    figure.savefig(output_path, bbox_inches="tight", facecolor="white")
+    plt.close(figure)
+
+
+def _posed_parts(
+    parts: Sequence[cq.Workplane], angles: dict[str, float]
+) -> list[cq.Workplane]:
+    posed = []
+    for index, part in enumerate(parts):
+        moved = part
+        for joint_index in range(index, 0, -1):
+            angle = angles.get(f"j{joint_index}", 0.0)
+            if angle:
+                center, axis = JOINTS[f"j{joint_index}"]
+                moved = moved.rotate(center, _v_add(center, axis), angle)
+        posed.append(moved)
+    return posed
+
+
+def render_fold_check(output_path: Path) -> None:
+    parts_by_name = build_parts()
+    parts = [parts_by_name[name] for name in PART_ORDER]
+    folded = {
+        "j2": -105.0,
+        "j3": 105.0,
+        "j4": -90.0,
+        "j5": -90.0,
+        "j6": -120.0,
+        "j7": 45.0,
+    }
+    poses = (("Neutral", parts), ("Compact folded pose", _posed_parts(parts, folded)))
+    figure = plt.figure(figsize=(12.0, 7.2), dpi=180, facecolor="white")
+    for panel, (title, posed) in enumerate(poses, start=1):
+        axis = figure.add_subplot(1, 2, panel, projection="3d", proj_type="ortho")
+        vertices = [
+            _add_shape(axis, part, PRINT_COLORS[index])
+            for index, part in enumerate(posed)
+        ]
+        board, sockets = _board(CONTROLLER_TRAY_CENTER[2])
+        vertices.append(_add_shape(axis, board, RED))
+        for socket in sockets:
+            vertices.append(_add_shape(axis, socket, BLACK))
+        vertices.append(_add_shape(axis, _nano(CONTROLLER_TRAY_CENTER[2] + 7.0), BLUE))
+        _finish_3d(axis, vertices, elev=8, azim=-74, zoom=1.30)
+        axis.set_title(title, fontsize=14, weight="bold", pad=10)
+    figure.suptitle(
+        "The controller stays on the base while the arm folds",
+        fontsize=18,
+        weight="bold",
+    )
+    figure.text(
+        0.5,
+        0.015,
+        "Fold shown at J2 −105°, J3 +105°, J4 −90°, J5 −90°, J6 −120°, gripper closed.",
+        ha="center",
+        fontsize=10.5,
+        color="#374151",
+    )
+    figure.tight_layout(rect=(0.0, 0.04, 1.0, 0.93), w_pad=0.3)
     figure.savefig(output_path, bbox_inches="tight", facecolor="white")
     plt.close(figure)
 
@@ -310,20 +405,49 @@ def render_wiring_guide(output_path: Path) -> None:
     axis.set_aspect("equal")
     axis.axis("off")
     axis.set_title("One potentiometer", fontsize=16, weight="bold", pad=14)
-    axis.add_patch(Circle((2.7, 6.8), 1.55, facecolor="#92400e", edgecolor=BLACK, linewidth=2))
-    axis.add_patch(Rectangle((2.42, 8.1), 0.56, 1.0, facecolor=STEEL, edgecolor=BLACK, linewidth=1.5))
+    axis.add_patch(
+        Circle((2.7, 6.8), 1.55, facecolor="#92400e", edgecolor=BLACK, linewidth=2)
+    )
+    axis.add_patch(
+        Rectangle(
+            (2.42, 8.1), 0.56, 1.0, facecolor=STEEL, edgecolor=BLACK, linewidth=1.5
+        )
+    )
     terminal_x = (1.7, 2.7, 3.7)
     terminal_labels = ("outer", "WIPER", "outer")
     for x, label in zip(terminal_x, terminal_labels):
-        axis.add_patch(Rectangle((x - 0.12, 4.35), 0.24, 1.1, facecolor=STEEL, edgecolor=BLACK))
-        axis.text(x, 4.0, label, ha="center", va="top", fontsize=10, weight="bold" if label == "WIPER" else None)
+        axis.add_patch(
+            Rectangle((x - 0.12, 4.35), 0.24, 1.1, facecolor=STEEL, edgecolor=BLACK)
+        )
+        axis.text(
+            x,
+            4.0,
+            label,
+            ha="center",
+            va="top",
+            fontsize=10,
+            weight="bold" if label == "WIPER" else None,
+        )
 
     header_y = (7.2, 5.8, 4.4)
     header_labels = (("S", BLUE, "signal"), ("V", RED, "5 V"), ("G", BLACK, "ground"))
-    axis.add_patch(FancyBboxPatch((7.1, 3.7), 1.8, 4.3, boxstyle="round,pad=0.15", facecolor="#f3f4f6", edgecolor=BLACK))
+    axis.add_patch(
+        FancyBboxPatch(
+            (7.1, 3.7),
+            1.8,
+            4.3,
+            boxstyle="round,pad=0.15",
+            facecolor="#f3f4f6",
+            edgecolor=BLACK,
+        )
+    )
     for y, (letter, color, meaning) in zip(header_y, header_labels):
-        axis.add_patch(Circle((7.65, y), 0.22, facecolor=color, edgecolor=BLACK, linewidth=1))
-        axis.text(8.05, y, f"{letter}  {meaning}", va="center", fontsize=11, weight="bold")
+        axis.add_patch(
+            Circle((7.65, y), 0.22, facecolor=color, edgecolor=BLACK, linewidth=1)
+        )
+        axis.text(
+            8.05, y, f"{letter}  {meaning}", va="center", fontsize=11, weight="bold"
+        )
 
     routes = (
         ((2.7, 5.45), (7.4, 7.2), BLUE, 0.12),
@@ -342,8 +466,21 @@ def render_wiring_guide(output_path: Path) -> None:
                 "connectionstyle": f"arc3,rad={bend}",
             },
         )
-    axis.text(5.0, 1.55, "Find the center wiper with a multimeter.", ha="center", fontsize=11.5, weight="bold")
-    axis.text(5.0, 0.85, "Either outer pin may be V or G; swapping them reverses direction.", ha="center", fontsize=10.5)
+    axis.text(
+        5.0,
+        1.55,
+        "Find the center wiper with a multimeter.",
+        ha="center",
+        fontsize=11.5,
+        weight="bold",
+    )
+    axis.text(
+        5.0,
+        0.85,
+        "Either outer pin may be V or G; swapping them reverses direction.",
+        ha="center",
+        fontsize=10.5,
+    )
 
     axis = axes[1]
     axis.set_xlim(0, 10)
@@ -362,15 +499,40 @@ def render_wiring_guide(output_path: Path) -> None:
     for index, (analog, joint) in enumerate(joints):
         y = 8.6 - index * 1.05
         fill = "#f9fafb" if index % 2 == 0 else "#eef2ff"
-        axis.add_patch(FancyBboxPatch((0.6, y - 0.37), 8.8, 0.75, boxstyle="round,pad=0.05", facecolor=fill, edgecolor="#d1d5db"))
+        axis.add_patch(
+            FancyBboxPatch(
+                (0.6, y - 0.37),
+                8.8,
+                0.75,
+                boxstyle="round,pad=0.05",
+                facecolor=fill,
+                edgecolor="#d1d5db",
+            )
+        )
         axis.text(1.0, y, analog, va="center", fontsize=11, weight="bold")
         for x, (letter, color, _) in zip((2.4, 3.25, 4.1), header_labels):
-            axis.add_patch(Circle((x, y), 0.18, facecolor=color, edgecolor=BLACK, linewidth=0.8))
-            axis.text(x, y - 0.31, letter, ha="center", va="top", fontsize=7.5, weight="bold")
+            axis.add_patch(
+                Circle((x, y), 0.18, facecolor=color, edgecolor=BLACK, linewidth=0.8)
+            )
+            axis.text(
+                x, y - 0.31, letter, ha="center", va="top", fontsize=7.5, weight="bold"
+            )
         axis.text(4.75, y, joint, va="center", fontsize=11)
-    axis.text(5.0, 0.65, "Repeat S / V / G for every row. Power from Nano USB only.", ha="center", fontsize=11, weight="bold")
+    axis.text(
+        5.0,
+        0.65,
+        "Repeat S / V / G for every row. Power from Nano USB only.",
+        ha="center",
+        fontsize=11,
+        weight="bold",
+    )
 
-    figure.suptitle("Plug-in wiring — labels matter, wire colors do not", fontsize=19, weight="bold", y=0.99)
+    figure.suptitle(
+        "Plug-in wiring — labels matter, wire colors do not",
+        fontsize=19,
+        weight="bold",
+        y=0.99,
+    )
     figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.94), w_pad=1.2)
     figure.savefig(output_path, bbox_inches="tight", facecolor="white")
     plt.close(figure)
@@ -388,6 +550,7 @@ def main() -> None:
     render_part_order(args.output_dir / "assembly-part-order.png")
     render_joint_sequence(args.output_dir / "assembly-joint-sequence.png")
     render_controller_sequence(args.output_dir / "assembly-controller-sequence.png")
+    render_fold_check(args.output_dir / "assembly-folded-clearance.png")
     render_wiring_guide(args.output_dir / "wiring-one-leader.png")
     print(f"Rendered assembly guides to {args.output_dir}")
 
