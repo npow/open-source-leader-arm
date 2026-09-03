@@ -33,26 +33,26 @@ through link 1's sweep; J5 faces up so link 5 has a corridor down to J6.
 
 ### How small can it go?
 
-`LEADER_SCALE` was searched downward against this suite:
+What this suite reports at other scales:
 
 | Scale | Result |
 | ---: | --- |
 | 0.75 | passes |
 | 0.70 | collisions all clear, but `simple_link_5` is not a valid single solid |
-| 0.68 | passes — shipped |
+| 0.68 | passes; shipped |
 | 0.67 | passes |
 | 0.66 | the folded forearm reaches the base plate |
 
-0.66 is the first real collision, so 0.68 ships with a step of margin rather
-than 0.67. Below 0.66 the base plate and Nano shield stop shrinking with the arm
-and then the joints themselves run out of room.
+0.66 is the first real collision, so 0.68 keeps a step of margin. Below that the
+base plate and Nano shield stop shrinking with the arm, and then the joints
+themselves run out of room.
 
-**The model is not valid at every scale in between.** `simple_link_5` fails the
+The model is not valid at every scale in between. `simple_link_5` fails the
 valid-solid check at 0.70 and 0.74 while passing at 0.68 and 0.75. The cause is
-near-tangency, not packing: at those spacings the descent beam leaves J5 on a
-short radial neck that puts its surface about a millimetre from the snap axle
-and straddling `STOP_GROOVE_OUTER_RADIUS`, and the union drops a segment rather
-than fusing it. If you change `LEADER_SCALE`, run the suite — and if link 5
+near-tangency rather than packing: at those spacings the descent beam leaves J5
+on a short radial neck that puts its surface about a millimetre from the snap
+axle and straddling `STOP_GROOVE_OUTER_RADIUS`, so the union drops a segment
+instead of fusing it. If you change `LEADER_SCALE`, run the suite. If link 5
 fails, route it out of J5 along the joint axis first, where nothing is nearby,
 instead of on that neck.
 
@@ -81,11 +81,11 @@ parts rather than only neighbours, and it includes the fixed controller's
 78×74×22 mm electronics envelope.
 
 Additional regressions cover all 27 nominal J4/J5/J6 corner combinations,
-shoulder folds across five J1 yaw samples, the former tray-collision pose, a
-a six-joint fold onto the printed stops across the yaw range, and a shoulder/elbow grid that
-checks the documented fold envelope in both directions — everything inside it
-clears, and the corner it excludes really does collide. They do not exhaustively
-sample continuous multi-joint space or prove a self-collision-free workspace.
+shoulder folds across five J1 yaw samples, a wrist-over-tray pose, a six-joint
+fold onto the printed stops across the yaw range, and a shoulder/elbow grid that
+checks the fold envelope in both directions: everything inside it clears, and the
+corner it excludes does collide. They do not exhaustively sample continuous
+multi-joint space or prove a self-collision-free workspace.
 
 The gripper's leaf/post overlap is excluded from the pair checks and tested on
 its own, because that overlap is the intended elastic spring engagement.
@@ -136,18 +136,17 @@ in the BOM provide.
 Under the 200 mm assumption, J1 reaches directly, J2 uses one segment, J3/J4 use
 two, J5/J6 use three, and J7 uses four. That is 45 individual jumper wires per
 leader and 90 for two, leaving 30 spares. Three ribbons still cover the arm at a
-100 mm factory lead, so the budget no longer depends on the unstated length.
+100 mm factory lead, so the budget does not depend on that unstated length.
 
 ## Fixed base and controller
 
 J1's socket faces down, so `_pedestal` is a plain column carrying the whole
 underside of that socket, open toward the arm so the potentiometer still slides
-into its cradle after printing. The alternative — socket facing up — forces the
-pedestal to reach through a gap in link 1's own sweep, and the follower's
-33.9 mm shoulder offset swings link 1 about 21 degrees wide in plan view, which
-leaves no such gap at J1's full travel. The governing section between the plate
-and the socket is over 1500 mm^2, against 77 mm^2 for the pair of 6 mm columns
-the design started with.
+into its cradle after printing. Facing the socket up instead forces the pedestal
+to reach through a gap in link 1's own sweep, and the follower's 33.9 mm shoulder
+offset swings link 1 about 21 degrees wide in plan view, leaving no such gap at
+J1's full travel. The governing section between the plate and the socket is over
+1700 mm^2.
 
 The horizontal Nano-shield sidecar is integral with the base, producing a
 149×90 mm print footprint. Four risers leave clearance for solder joints on the
@@ -190,10 +189,10 @@ collision suite sweeps.
 single-joint stop cannot protect: shoulder forward past J2 +20° with the elbow
 below J3 −60° puts the wrist on the base plate.
 
-`test_j2_reaches_its_full_printed_stop_without_hitting_the_base` rejects the old
-shoulder obstruction. `test_controller_is_fixed_to_the_base_and_old_wrist_collision_is_clear`
-rejects the old moving-tray obstruction, and the fold-grid tests keep both from
-returning unnoticed.
+`test_j2_reaches_its_full_printed_stop_without_hitting_the_base` and
+`test_controller_is_fixed_to_the_base_and_old_wrist_collision_is_clear` hold the
+shoulder and the wrist clear of the base and the fixed tray; the fold-grid tests
+cover the combinations between them.
 
 If link positions, controller location, joint envelope, beam radius, or stop
 ranges change, rerun the complete collision suite and regenerate every STEP and
