@@ -48,8 +48,7 @@ NANO_SHIELD_EDGE_CLEARANCE = 0.60
 # The Nano shield is fixed horizontally to a sidecar on the base.  Keeping the
 # controller and USB cable off the moving chain removes their mass and collision
 # envelope from the wrist.  ``CONTROLLER_TRAY_CENTER`` is the PCB centre, not
-# the floor below it.
-CONTROLLER_TRAY_CENTER = (-45.0, 0.0, 11.3)
+# the floor below it, and is derived from the pedestal further down.
 CONTROLLER_PART_INDEX = 0  # the fixed base carries the shield tray
 NANO_SHIELD_BOARD_THICKNESS = 1.6
 CONTROLLER_BOARD_BOTTOM_Z = 10.5
@@ -61,26 +60,12 @@ CONTROLLER_ELECTRONICS_HEIGHT = 22.0
 # every conductor consumed from the two 40-wire ribbons in the BOM.
 POT_LEAD_LENGTH = 200.0
 EXTENSION_LEAD_LENGTH = 300.0
-JUMPER_PACK_COUNT = 2
+JUMPER_PACK_COUNT = 3
 JUMPER_PACK_WIRES = 40
 LEADER_COUNT = 2
 CABLE_ROUTING_FACTOR = 1.25  # extra contour/slack beyond the centerline polyline
 CABLE_SERVICE_LOOP = 35.0  # slack per rotating joint a run crosses
 CABLE_TERMINATION_ALLOWANCE = 20.0  # both connector bodies plus strain relief
-
-# Base pedestal.  Link 1 sweeps the volume directly under the J1 socket, so the
-# pedestal may only reach that socket through the wedge behind J1's travel.
-BASE_PLATE_LENGTH = 110.0
-BASE_PLATE_WIDTH = 90.0
-BASE_PLATE_THICKNESS = 8.0
-BUTTRESS_X_MIN = -4.0
-BUTTRESS_X_MAX = 22.0
-BUTTRESS_HALF_WIDTH = 16.0
-J1_SWEEP_RADIUS = 39.0  # link 1's neck and beam reach this far from the J1 axis
-J1_SWEEP_Z_MAX = 49.3  # top of the J1 socket, above which nothing of link 1 passes
-# The neck's corner lies exactly on the ideal sweep envelope, so the envelope
-# needs real margin or the pedestal is tangent to the link at the stop.
-J1_SWEEP_ANGULAR_MARGIN = 4.0
 
 # Joint envelope and sensor stack.  The potentiometer is inserted from the top
 # after the structural axle has snapped through the bearing.  Its shaft then
@@ -107,71 +92,110 @@ STOP_ANGULAR_CLEARANCE = 8.0
 BEAM_RADIUS = 6.5
 NECK_LENGTH = 25.0
 
-# A compact leader is easier to move than a 1:1 replica.  Joint-space mapping
-# means the link lengths do not affect commanded follower angles.  The axis
-# order matches YAM: Z, Y, Y, Y, Z, X, followed by the gripper input on Y.
-UPPER_CHAIN_LIFT = 55.0
-JOINTS: Mapping[str, Tuple[Vector3, Vector3]] = {
-    # J1 points upward so the moving flange and link remain below the stationary
-    # sensor stack.  J2 and the whole upper chain are raised so the complete J2
-    # and J3 printed-stop sweeps clear the base and controller electronics.
-    "j1": ((35.0, 0.0, 40.0), (0.0, 0.0, 1.0)),
-    "j2": ((80.0, 0.0, 90.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
-    "j3": ((80.0, 0.0, 175.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
-    "j4": ((80.0, 0.0, 260.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
-    "j5": ((25.0, 0.0, 300.0 + UPPER_CHAIN_LIFT), (0.0, 0.0, 1.0)),
-    "j6": ((-35.0, 0.0, 340.0 + UPPER_CHAIN_LIFT), (1.0, 0.0, 0.0)),
-    "j7": ((-35.0, 0.0, 395.0 + UPPER_CHAIN_LIFT), (0.0, 1.0, 0.0)),
+# ---------------------------------------------------------------------------
+# Follower kinematics.
+#
+# Joint-space teleoperation sends each leader angle straight to the matching
+# follower joint, so the operator's hand tracks the follower's gripper only if
+# the leader is a *uniform* scaling of the follower.  Scale every segment by the
+# same factor and the two arms stay geometrically similar at every pose; scale
+# them individually -- a short upper arm here, a long wrist there -- and the
+# angles remain legal while the correspondence the operator relies on is gone.
+# That is why this chain is derived from the follower's own model rather than
+# drawn to fit the print bed.
+#
+# Source: i2rt-robotics/i2rt, i2rt/robot_models/arm/yam/v1/yam.urdf, retrieved
+# 2026-09-03.  Each row is that file's joint origin (metres), origin rpy
+# (radians), rotation axis, and travel limits converted to degrees.  Do not
+# hand-edit JOINTS; change LEADER_SCALE or the rows below and re-derive.
+# ---------------------------------------------------------------------------
+YAM_URDF_SOURCE = "i2rt-robotics/i2rt i2rt/robot_models/arm/yam/v1/yam.urdf"
+YAM_URDF_CHAIN: Tuple[
+    Tuple[str, Vector3, Vector3, Vector3, Tuple[float, float]], ...
+] = (
+    ("j1", (0.0, 0.0, 0.0680), (0.0, 1.5708, 3.141596), (-1.0, 0.0, 0.0), (-150.0, 180.0)),
+    ("j2", (-0.0455, -0.0339, -0.0200), (0.0, 0.0, -3.14159), (0.0, 1.0, 0.0), (0.0, 210.0)),
+    ("j3", (0.0, -0.0688, 0.2640), (0.0, 0.0, -3.14159), (0.0, 1.0, 0.0), (0.0, 180.0)),
+    ("j4", (-0.0600, -0.0688, -0.2450), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (-97.0, 90.0)),
+    ("j5", (-0.0405, 0.0339, -0.0740), (0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (-90.0, 90.0)),
+    ("j6", (0.0405, 0.0, -0.0356), (0.0, 0.0, 0.0), (0.0, 0.0, -1.0), (-120.0, 120.0)),
+)
+# The follower's gripper is a pair of prismatic fingers.  The leader replaces
+# them with a squeeze lever, so only the finger pivot's position is borrowed,
+# taken on the gripper centreline: the URDF's lateral term is one finger's own
+# offset, not a link length.
+YAM_URDF_GRIPPER_ORIGIN: Vector3 = (-0.0240, 0.0, -0.0567)
+
+# The one number that sets the leader's size.  It is bounded below by hardware,
+# not by taste: the follower's J5-to-J6 offset is only 53.9 mm, and a joint here
+# is a 26 mm bearing plus a 17 mm potentiometer body, so the printed joints
+# collide before the arm gets much smaller.  ``test_leader_is_a_uniformly_
+# scaled_yam`` and the collision suite are what actually hold this bound.
+LEADER_SCALE = 0.75
+
+# Every joint angle here is a multiple of 90 degrees, which keeps all six axes
+# on world axes -- the socket orientation code only builds cardinal joints --
+# and this particular pose sits within a few degrees of the middle of every
+# follower joint range while giving the familiar upright upper arm and forward
+# forearm.  Printed stops are then derived as ``follower limit - build angle``,
+# so the stops protect the follower's real travel instead of a symmetric guess.
+YAM_BUILD_POSE_DEG: Mapping[str, float] = {
+    "j1": 0.0,
+    "j2": 90.0,
+    "j3": 90.0,
+    "j4": 0.0,
+    "j5": 0.0,
+    "j6": 0.0,
 }
 
-# Physical leader stops in degrees.  J1 deliberately uses 280 degrees of the
-# nominal 300-degree potentiometer and is scaled 325/280 in host software.
-# Every other arm axis fits inside the pot travel without scaling.
-JOINT_LIMITS_DEG: Mapping[str, Tuple[float, float]] = {
-    "j1": (-140.0, 140.0),
-    "j2": (-105.0, 105.0),
-    "j3": (-105.0, 105.0),
-    "j4": (-90.0, 90.0),
-    "j5": (-90.0, 90.0),
-    "j6": (-120.0, 120.0),
-    "j7": (0.0, 45.0),
-}
+# A WH148 turns about 300 degrees end to end; staying inside 280 leaves the
+# printed stops, not the pot's internal stops, taking the abuse.
+POT_USABLE_TRAVEL_DEG = 280.0
+
+# The socket and its potentiometer always extend along +axis, so the axis sign
+# also picks which side of a joint the sensor sticks out of.  +1 keeps the
+# follower's own positive direction, which is what lets the host map angles with
+# ``joint_signs`` all +1; -1 buys clearance at the cost of a -1 for that joint.
+# J7 is the leader's own squeeze lever and has no follower joint to agree with.
+# J1 faces down so its socket hangs under the pedestal and every part of link 1
+# stays above it.  With the socket facing up the pedestal has to reach the
+# socket through a gap in link 1's own sweep, and the follower's 33.9 mm
+# shoulder offset swings link 1 about 21 degrees wide in plan view, which
+# leaves no such gap at J1's full travel.  J5 is flipped so its socket and
+# carrier sit above the wrist, clearing the corridor link 5 needs to drop
+# behind J6's moving flange; see build_link_5.
+POT_MOUNT_SIGN: Mapping[str, float] = {"j1": -1.0, "j5": -1.0, "j7": -1.0}
+LEADER_GRIPPER_RANGE_DEG = (0.0, 45.0)
+
+# Travel the printed stops must not permit because the arm reaches itself or
+# the base there.  Folding the elbow that far runs the forearm back along the
+# upper arm and drops the wrist onto the base plate.  The follower folds into
+# itself in the same region -- a URDF limit is not a promise of a
+# collision-free workspace -- but the leader has to stop mechanically instead
+# of relying on the operator noticing.  Measured with the collision sweep in
+# ``test_elbow_stop_is_where_the_arm_stops_clearing_itself``; the stops are cut
+# STOP_ANGULAR_CLEARANCE past these, so leave room for that overtravel.
+SELF_COLLISION_LIMIT_DEG: Mapping[str, Tuple[float, float]] = {"j3": (-74.0, 90.0)}
+
+# One combination survives those single-joint stops and still collides: pitch
+# the shoulder forward and fold the elbow at the same time and the wrist comes
+# down onto the base plate.  A printed stop can only limit one joint at a time,
+# so this is an operating envelope rather than a hardware one.  The follower
+# reaches its own mount and table in the same corner of its workspace.  The
+# measured boundary is not monotonic in the shoulder angle, so this is stated
+# conservatively: it excludes some folds that do in fact clear.
+COUPLED_FOLD_LIMIT_DEG: Mapping[str, float] = {"j2_beyond": 20.0, "j3_floor": -60.0}
 
 
-# No joint is clipped by the base before its printed stop.  Keep this mapping so
-# a future base-dependent limit has one explicit source of truth.
-BASE_LIMITED_RANGE_DEG: Mapping[str, Tuple[float, float]] = {}
+def fold_is_permitted(j2_degrees: float, j3_degrees: float) -> bool:
+    """Whether a shoulder/elbow pair is inside the documented safe envelope."""
 
+    if j2_degrees <= COUPLED_FOLD_LIMIT_DEG["j2_beyond"]:
+        return True
+    return j3_degrees >= COUPLED_FOLD_LIMIT_DEG["j3_floor"]
 
-def stop_pin_half_angle() -> float:
-    """Angular half-width of the stop pin at its own radius."""
-
-    return math.degrees(math.asin(STOP_PIN_RADIUS / STOP_RADIUS))
-
-
-def stop_limited_range(joint: str) -> Tuple[float, float]:
-    """Travel the printed stops actually permit, which is not the declared range.
-
-    The groove is cut ``STOP_ANGULAR_CLEARANCE`` past each end of the declared
-    range, but the pin stops when its *edge* meets the end of the groove, not
-    its centre.  Everything downstream -- the base pedestal wedge and the
-    collision suite -- has to use this rather than the nominal limits.
-    """
-
-    lower, upper = JOINT_LIMITS_DEG[joint]
-    overtravel = max(0.0, STOP_ANGULAR_CLEARANCE - stop_pin_half_angle())
-    return lower - overtravel, upper + overtravel
-
-
-def usable_range(joint: str) -> Tuple[float, float]:
-    """Travel that is both inside the printed stops and clear of the base."""
-
-    lower, upper = stop_limited_range(joint)
-    blocked = BASE_LIMITED_RANGE_DEG.get(joint)
-    if blocked is not None:
-        lower = max(lower, blocked[0])
-        upper = min(upper, blocked[1])
-    return lower, upper
+Matrix3 = Tuple[Vector3, Vector3, Vector3]
+_IDENTITY: Matrix3 = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
 def _v_add(a: Vector3, b: Vector3) -> Vector3:
@@ -201,6 +225,189 @@ def _unit(a: Vector3) -> Vector3:
     return _v_scale(a, 1.0 / magnitude)
 
 
+def _m_mul(a: Matrix3, b: Matrix3) -> Matrix3:
+    return tuple(  # type: ignore[return-value]
+        tuple(sum(a[row][k] * b[k][col] for k in range(3)) for col in range(3))
+        for row in range(3)
+    )
+
+
+def _m_apply(m: Matrix3, v: Vector3) -> Vector3:
+    return tuple(  # type: ignore[return-value]
+        sum(m[row][k] * v[k] for k in range(3)) for row in range(3)
+    )
+
+
+def _rotation_rpy(roll: float, pitch: float, yaw: float) -> Matrix3:
+    """URDF fixed-axis roll-pitch-yaw, in radians."""
+
+    cr, sr = math.cos(roll), math.sin(roll)
+    cp, sp = math.cos(pitch), math.sin(pitch)
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    return (
+        (cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr),
+        (sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr),
+        (-sp, cp * sr, cp * cr),
+    )
+
+
+def _rotation_axis(axis: Vector3, degrees: float) -> Matrix3:
+    x, y, z = _unit(axis)
+    angle = math.radians(degrees)
+    c, s = math.cos(angle), math.sin(angle)
+    d = 1.0 - c
+    return (
+        (c + x * x * d, x * y * d - z * s, x * z * d + y * s),
+        (y * x * d + z * s, c + y * y * d, y * z * d - x * s),
+        (z * x * d - y * s, z * y * d + x * s, c + z * z * d),
+    )
+
+
+def _cardinal(axis: Vector3) -> Vector3:
+    """Snap a world axis to its cardinal direction, or refuse to guess."""
+
+    snapped = tuple(round(value) if abs(value) > 0.999 else 0.0 for value in axis)
+    if sum(abs(value) for value in snapped) != 1.0 or _norm(_v_sub(axis, snapped)) > 1e-3:
+        raise ValueError(
+            f"joint axis {axis} is not a world axis; the build pose must use "
+            "multiples of 90 degrees"
+        )
+    return snapped  # type: ignore[return-value]
+
+
+def yam_chain(scale: float = 1.0) -> Tuple[Tuple[str, Vector3, Vector3], ...]:
+    """Joint centres in millimetres and unit axes at the leader's build pose.
+
+    Forward kinematics over ``YAM_URDF_CHAIN`` with ``YAM_BUILD_POSE_DEG``
+    applied, uniformly scaled.  The trailing entry is the gripper input, which
+    is placed at the follower's finger pivot but rotates rather than slides.
+    """
+
+    rotation: Matrix3 = _IDENTITY
+    position: Vector3 = (0.0, 0.0, 0.0)
+    chain = []
+    for name, origin, orientation, axis, _ in YAM_URDF_CHAIN:
+        position = _v_add(position, _m_apply(rotation, origin))
+        rotation = _m_mul(rotation, _rotation_rpy(*orientation))
+        chain.append(
+            (name, _v_scale(position, 1000.0 * scale), _cardinal(_m_apply(rotation, axis)))
+        )
+        rotation = _m_mul(rotation, _rotation_axis(axis, YAM_BUILD_POSE_DEG[name]))
+    gripper = _v_scale(
+        _v_add(position, _m_apply(rotation, YAM_URDF_GRIPPER_ORIGIN)), 1000.0 * scale
+    )
+    # The follower's finger pivot is only about 62 mm from its roll axis, which
+    # is closer than this hardware fits: J6's potentiometer carrier already
+    # occupies the first 35 mm of that direction and the lever joint's own neck
+    # reaches NECK_LENGTH back toward it.  The lever therefore sits at the
+    # scaled finger pivot or at the first place the parts fit, whichever is
+    # further out.  It is the leader's own input, not a follower joint, so
+    # moving it changes no commanded angle.
+    j6_center, j6_axis = chain[-1][1], chain[-1][2]
+    reach = _v_sub(gripper, j6_center)
+    direction = _unit(reach)
+    along_axis = abs(_dot(direction, j6_axis))
+    minimum = (POT_HOLDER_BACK_X + BEAM_RADIUS + 2.0) / along_axis + NECK_LENGTH
+    if _norm(reach) < minimum:
+        gripper = _v_add(j6_center, _v_scale(direction, minimum))
+    chain.append(("j7", gripper, _cardinal(_m_apply(rotation, (0.0, 1.0, 0.0)))))
+    return tuple(chain)
+
+
+def _leader_joints() -> Dict[str, Tuple[Vector3, Vector3]]:
+    return {
+        name: (center, _v_scale(axis, POT_MOUNT_SIGN.get(name, 1.0)))
+        for name, center, axis in yam_chain(LEADER_SCALE)
+    }
+
+
+def _leader_limits() -> Dict[str, Tuple[float, float]]:
+    """Printed stops, expressed in the leader's own zero-at-build-pose frame."""
+
+    limits: Dict[str, Tuple[float, float]] = {}
+    for name, _, _, _, (lower, upper) in YAM_URDF_CHAIN:
+        build = YAM_BUILD_POSE_DEG[name]
+        lower, upper = lower - build, upper - build
+        if POT_MOUNT_SIGN.get(name, 1.0) < 0.0:
+            lower, upper = -upper, -lower
+        half = POT_USABLE_TRAVEL_DEG / 2.0
+        lower, upper = max(lower, -half), min(upper, half)
+        blocked = SELF_COLLISION_LIMIT_DEG.get(name)
+        if blocked is not None:
+            lower, upper = max(lower, blocked[0]), min(upper, blocked[1])
+        limits[name] = (lower, upper)
+    limits["j7"] = LEADER_GRIPPER_RANGE_DEG
+    return limits
+
+
+JOINTS: Mapping[str, Tuple[Vector3, Vector3]] = _leader_joints()
+JOINT_LIMITS_DEG: Mapping[str, Tuple[float, float]] = _leader_limits()
+
+
+def follower_travel_lost_deg() -> Dict[str, Tuple[float, float]]:
+    """Follower travel the pot cannot span, as (below, above) in degrees.
+
+    Only J1 asks for more than one potentiometer can measure, so this is the
+    honest statement of what the leader gives up rather than a claim that the
+    printed stops cover the whole arm.
+    """
+
+    lost: Dict[str, Tuple[float, float]] = {}
+    for name, _, _, _, (lower, upper) in YAM_URDF_CHAIN:
+        build = YAM_BUILD_POSE_DEG[name]
+        wanted = (lower - build, upper - build)
+        if POT_MOUNT_SIGN.get(name, 1.0) < 0.0:
+            wanted = (-wanted[1], -wanted[0])
+        have = JOINT_LIMITS_DEG[name]
+        below, above = have[0] - wanted[0], wanted[1] - have[1]
+        if below > 1e-6 or above > 1e-6:
+            lost[name] = (below, above)
+    return lost
+
+
+# Base pedestal.  J1's socket hangs under its own pedestal, so this is a plain
+# column carrying the socket's full underside rather than a slab threaded
+# through link 1's sweep.  Its height follows J1, which moves with LEADER_SCALE.
+BASE_PLATE_LENGTH = 110.0
+BASE_PLATE_WIDTH = 90.0
+BASE_PLATE_THICKNESS = 8.0
+_J1_CENTER = JOINTS["j1"][0]
+PEDESTAL_HALF_WIDTH = JOINT_RADIUS + 8.0
+# The socket, its support tube, and the potentiometer cradle all hang inside
+# the column, so it is a U opening toward the arm: the pot still drops into its
+# cradle from that side after the column is printed.
+PEDESTAL_TOP_Z = _J1_CENTER[2] - SOCKET_BODY_DEPTH
+POT_CAVITY_HALF_WIDTH = (POT_BODY_DIAMETER + POT_BODY_CLEARANCE + 3.6) / 2.0 + 2.0
+
+# The shield tray sits behind the pedestal.  Link 1 never comes below the top
+# of the J1 socket, so the only thing the tray has to clear is the column.
+CONTROLLER_TRAY_CENTER: Vector3 = (
+    _J1_CENTER[0] - PEDESTAL_HALF_WIDTH - NANO_SHIELD_LONG / 2.0 - 6.0,
+    _J1_CENTER[1],
+    CONTROLLER_BOARD_BOTTOM_Z + NANO_SHIELD_BOARD_THICKNESS / 2.0,
+)
+
+
+def stop_pin_half_angle() -> float:
+    """Angular half-width of the stop pin at its own radius."""
+
+    return math.degrees(math.asin(STOP_PIN_RADIUS / STOP_RADIUS))
+
+
+def stop_limited_range(joint: str) -> Tuple[float, float]:
+    """Travel the printed stops actually permit, which is not the declared range.
+
+    The groove is cut ``STOP_ANGULAR_CLEARANCE`` past each end of the declared
+    range, but the pin stops when its *edge* meets the end of the groove, not
+    its centre.  The collision suite has to sweep this rather than the nominal
+    limits, because this is the travel a built arm actually has.
+    """
+
+    lower, upper = JOINT_LIMITS_DEG[joint]
+    overtravel = max(0.0, STOP_ANGULAR_CLEARANCE - stop_pin_half_angle())
+    return lower - overtravel, upper + overtravel
+
+
 def _box(
     x_length: float,
     y_length: float,
@@ -220,8 +427,12 @@ def _orient_x(part: cq.Workplane, axis: Vector3, center: Vector3) -> cq.Workplan
     axis = _unit(axis)
     if axis == (1.0, 0.0, 0.0):
         oriented = part
+    elif axis == (-1.0, 0.0, 0.0):
+        oriented = part.rotate((0, 0, 0), (0, 0, 1), 180)
     elif axis == (0.0, 1.0, 0.0):
         oriented = part.rotate((0, 0, 0), (0, 0, 1), 90)
+    elif axis == (0.0, -1.0, 0.0):
+        oriented = part.rotate((0, 0, 0), (0, 0, 1), -90)
     elif axis == (0.0, 0.0, 1.0):
         oriented = part.rotate((0, 0, 0), (0, 1, 0), -90)
     elif axis == (0.0, 0.0, -1.0):
@@ -520,6 +731,11 @@ def build_plug(
 
 def _cylinder_between(start: Vector3, end: Vector3, radius: float) -> cq.Workplane:
     delta = _v_sub(end, start)
+    if _norm(delta) < 0.05:
+        raise ValueError(
+            f"beam from {start} to {end} has no length; the joints it connects "
+            "are too close together at this LEADER_SCALE"
+        )
     solid = cq.Solid.makeCylinder(
         radius,
         _norm(delta),
@@ -529,13 +745,44 @@ def _cylinder_between(start: Vector3, end: Vector3, radius: float) -> cq.Workpla
     return cq.Workplane("XY").newObject([solid])
 
 
+def _beam_path_pieces(
+    points: Tuple[Vector3, ...], radius: float = BEAM_RADIUS
+) -> Tuple[cq.Workplane, ...]:
+    """A doglegged beam, as separate solids for the caller to union in turn.
+
+    Two cylinders that meet exactly at a shared end plane can fail to fuse: the
+    boolean sees a tangency rather than a shared volume and quietly drops one
+    of them.  A ball at each interior corner gives consecutive segments real
+    shared volume, and rounds the corner while it is there.  The pieces are
+    returned rather than pre-fused because unioning them one at a time into the
+    link they belong to is what the boolean handles reliably.
+    """
+
+    if len(points) < 2:
+        raise ValueError("a beam path needs at least two waypoints")
+    pieces = [
+        _cylinder_between(start, end, radius) for start, end in zip(points, points[1:])
+    ]
+    pieces.extend(
+        cq.Workplane("XY").sphere(radius).translate(corner) for corner in points[1:-1]
+    )
+    return tuple(pieces)
+
+
 def _radial_neck(
     center: Vector3,
     axis: Vector3,
     toward: Vector3,
     length: float = NECK_LENGTH,
+    depth: float = FLANGE_THICKNESS,
 ) -> Tuple[cq.Workplane, Vector3]:
-    """Leave a plug radially without entering the stationary socket."""
+    """Leave a plug radially without entering the stationary socket.
+
+    ``depth`` is how far the neck stands off the flange face.  A neck that is
+    only as deep as the flange meets the beam through whatever the stop groove
+    leaves behind, which on a short neck is a sliver; joints whose beam starts
+    inside the groove radius need a deeper one.
+    """
 
     axis = _unit(axis)
     toward_vector = _v_sub(toward, center)
@@ -545,7 +792,7 @@ def _radial_neck(
         radial = _v_sub(fallback, _v_scale(axis, _dot(fallback, axis)))
     radial = _unit(radial)
 
-    plane_origin = _v_sub(center, _v_scale(axis, FLANGE_THICKNESS))
+    plane_origin = _v_sub(center, _v_scale(axis, depth))
     width_direction = _unit(
         (
             axis[1] * radial[2] - axis[2] * radial[1],
@@ -562,10 +809,10 @@ def _radial_neck(
         cq.Workplane(plane)
         .center(length / 2.0, 0.0)
         .rect(length, BEAM_RADIUS * 2.0)
-        .extrude(FLANGE_THICKNESS)
+        .extrude(depth)
     )
     waypoint = _v_add(
-        _v_sub(center, _v_scale(axis, FLANGE_THICKNESS / 2.0)),
+        _v_sub(center, _v_scale(axis, depth / 2.0)),
         _v_scale(radial, length),
     )
     # Silence type checkers and document the plane's second in-plane vector;
@@ -578,6 +825,7 @@ def _socket_neck(
     center: Vector3,
     axis: Vector3,
     toward: Vector3,
+    length: float = NECK_LENGTH,
 ) -> Tuple[cq.Workplane, Vector3]:
     """Join a thick beam to a socket without entering the moving-flange side."""
 
@@ -596,8 +844,8 @@ def _socket_neck(
     )
     neck = (
         cq.Workplane(plane)
-        .center(NECK_LENGTH / 2.0, 0.0)
-        .rect(NECK_LENGTH, BEAM_RADIUS * 2.0)
+        .center(length / 2.0, 0.0)
+        .rect(length, BEAM_RADIUS * 2.0)
         .extrude(SOCKET_BODY_DEPTH)
     )
     # This neck overlaps the socket for strength, so repeat the bearing and
@@ -605,7 +853,7 @@ def _socket_neck(
     neck = neck.cut(_orient_x(_socket_void(), axis, center))
     waypoint = _v_add(
         _v_add(center, _v_scale(axis, SOCKET_BODY_DEPTH / 2.0)),
-        _v_scale(radial, NECK_LENGTH),
+        _v_scale(radial, length),
     )
     return neck, waypoint
 
@@ -625,11 +873,16 @@ def _joint_stop_groove(name: str) -> cq.Workplane:
     return _orient_x(_stop_groove(*JOINT_LIMITS_DEG[name]), axis, center)
 
 
-def _link(proximal: str, distal: str) -> cq.Workplane:
+def _link(
+    proximal: str, distal: str, proximal_neck_length: float = NECK_LENGTH
+) -> cq.Workplane:
     proximal_center, proximal_axis = JOINTS[proximal]
     distal_center, distal_axis = JOINTS[distal]
     part = _joint_plug(proximal)
-    proximal_neck_length = 32.0 if proximal == "j1" else NECK_LENGTH
+    # Both necks run the full NECK_LENGTH even where the joints are close
+    # together.  A shorter one lets the beam turn while it is still inside the
+    # neighbouring socket or flange, which reads as a clean model and prints as
+    # a joint that cannot rotate.
     neck, waypoint = _radial_neck(
         proximal_center,
         proximal_axis,
@@ -637,7 +890,7 @@ def _link(proximal: str, distal: str) -> cq.Workplane:
         length=proximal_neck_length,
     )
     socket_neck, socket_waypoint = _socket_neck(
-        distal_center, distal_axis, proximal_center
+        distal_center, distal_axis, proximal_center, length=NECK_LENGTH
     )
     part = part.union(neck)
     part = part.union(_cylinder_between(waypoint, socket_waypoint, BEAM_RADIUS))
@@ -649,79 +902,39 @@ def _link(proximal: str, distal: str) -> cq.Workplane:
     part = part.cut(_joint_stop_groove(proximal))
     return part.clean()
 
+def _pedestal() -> cq.Workplane:
+    """Column under the J1 socket, open toward the arm for pot installation."""
 
-def _link_1_sweep() -> cq.Workplane:
-    """The volume link 1 sweeps under the J1 socket, as a cut tool for the base.
-
-    The flange is a full disc, so no pedestal material may sit under it at any
-    angle.  Outside the flange the neck and beam only sweep J1's stop-limited
-    travel, which leaves a wedge behind the joint for the pedestal to reach the
-    socket wall through.  That wedge carries the entire arm, so it is derived
-    from the travel rather than guessed, and it widens with radius: a beam of a
-    given width subtends less angle the further out it is.
-    """
-
-    center, _ = JOINTS["j1"]
-    center_xy = (center[0], center[1])
-    clearance = 0.3
-    sweep_bottom = center[2] - FLANGE_THICKNESS - clearance
-    height = J1_SWEEP_Z_MAX - sweep_bottom
-    inner_radius = FLANGE_RADIUS + 0.5
-
-    disc = (
-        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
-        .center(*center_xy)
-        .circle(inner_radius)
-        .extrude(FLANGE_THICKNESS + 2.0 * clearance)
-    )
-
-    lower, upper = stop_limited_range("j1")
-    reach = max(abs(lower), abs(upper))
-
-    def free_half_angle(radius: float) -> float:
-        """Half-angle of the wedge the sweep leaves clear at this radius."""
-
-        beam_half = math.degrees(math.asin(min(1.0, BEAM_RADIUS / radius)))
-        return 180.0 - reach - beam_half - J1_SWEEP_ANGULAR_MARGIN
-
-    if free_half_angle(inner_radius) <= 1.0:
+    center = _J1_CENTER
+    height = PEDESTAL_TOP_Z - BASE_PLATE_THICKNESS
+    if height < 1.0:
         raise RuntimeError(
-            "J1's travel leaves no wedge for the base pedestal to reach the socket"
+            "the J1 socket hangs into the base plate at this LEADER_SCALE"
         )
-
-    band = (
-        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
-        .center(*center_xy)
-        .circle(J1_SWEEP_RADIUS)
-        .circle(inner_radius)
-        .extrude(height)
+    column = _box(
+        PEDESTAL_HALF_WIDTH * 2.0,
+        PEDESTAL_HALF_WIDTH * 2.0,
+        height,
+        (center[0], center[1], BASE_PLATE_THICKNESS + height / 2.0),
     )
-
-    # Run the wedge well past the band so its closing chords fall outside the
-    # region being cut; otherwise a chord would shave material off the wedge.
-    outer_radius = J1_SWEEP_RADIUS * 1.4
-    # The boundary turns fastest just outside the flange, so sample radius
-    # geometrically rather than uniformly.
-    samples = 40
-    ratio = outer_radius / inner_radius
-    radii = [inner_radius * ratio ** (index / samples) for index in range(samples + 1)]
-
-    def point(radius: float, degrees: float) -> Tuple[float, float]:
-        angle = math.radians(degrees)
-        return (
-            center_xy[0] + radius * math.cos(angle),
-            center_xy[1] + radius * math.sin(angle),
+    # The cradle opens toward +X once the socket is turned to face down, so the
+    # cavity runs out through that face and the potentiometer slides in after
+    # printing.  It stops short of the plate so the column keeps a solid floor.
+    cavity_length = PEDESTAL_HALF_WIDTH + POT_CAVITY_HALF_WIDTH + 2.0
+    cavity_height = height - 4.0
+    column = column.cut(
+        _box(
+            cavity_length,
+            POT_CAVITY_HALF_WIDTH * 2.0,
+            cavity_height,
+            (
+                center[0] - POT_CAVITY_HALF_WIDTH + cavity_length / 2.0,
+                center[1],
+                PEDESTAL_TOP_Z - cavity_height / 2.0,
+            ),
         )
-
-    boundary = [point(r, 180.0 - free_half_angle(r)) for r in radii]
-    boundary += [point(r, 180.0 + free_half_angle(r)) for r in reversed(radii)]
-    wedge = (
-        cq.Workplane("XY", origin=(0.0, 0.0, sweep_bottom))
-        .polyline(boundary)
-        .close()
-        .extrude(height)
     )
-    return disc.union(band.cut(wedge))
+    return column
 
 
 def controller_electronics_keepout() -> cq.Workplane:
@@ -814,27 +1027,13 @@ def build_base() -> cq.Workplane:
     )
     base = base.edges("|Z").fillet(8.0)
 
-    # One buttressed pedestal replaces the original pair of 6 mm columns.  Those
-    # met the J1 socket only through two small stub lenses, so every newton the
-    # arm applied crossed a section modulus of roughly 70 mm^3 in PETG, across
-    # the layer lines.  A single slab reaching the socket wall through the wedge
-    # behind J1's travel carries the same load through more than ten times that.
-    buttress_height = joint_center[2] + SOCKET_BODY_DEPTH - BASE_PLATE_THICKNESS
-    buttress = _box(
-        BUTTRESS_X_MAX - BUTTRESS_X_MIN,
-        BUTTRESS_HALF_WIDTH * 2.0,
-        buttress_height,
-        (
-            (BUTTRESS_X_MIN + BUTTRESS_X_MAX) / 2.0,
-            joint_center[1],
-            BASE_PLATE_THICKNESS + buttress_height / 2.0,
-        ),
-    )
-    # The pedestal overlaps the socket wall so the two fuse into one section
-    # rather than merely touching, so it has to repeat the joint bore cut.
-    buttress = buttress.cut(_orient_x(_socket_void(), joint_axis, joint_center))
-    buttress = buttress.cut(_link_1_sweep())
-    base = base.union(buttress)
+    # The column carries the whole underside of the J1 socket in compression,
+    # rather than meeting it through the small lens a wedge or a pair of posts
+    # can reach.  It overlaps the socket wall so the two fuse into one section
+    # instead of merely touching, so it has to repeat the joint bore cut.
+    pedestal = _pedestal()
+    pedestal = pedestal.cut(_orient_x(_socket_void(), joint_axis, joint_center))
+    base = base.union(pedestal)
     base = base.union(_joint_socket("j1"))
     base = base.union(_controller_sidecar())
 
@@ -848,7 +1047,32 @@ def build_base() -> cq.Workplane:
 
 
 def build_link_6() -> cq.Workplane:
-    part = _link("j6", "j7")
+    """Carry the gripper past J6's own sensor stack, then add the hand grip.
+
+    The gripper sits close in behind J6's bearing seat and potentiometer, and
+    this link rolls 240 degrees around both of them.  A beam aimed straight at
+    the lever pivot cuts the corner of that stack, so the beam first runs
+    parallel to the roll axis at neck radius until it is clear of the pot
+    holder, and only then turns toward the pivot.
+    """
+
+    j6_center, j6_axis = JOINTS["j6"]
+    j7_center, j7_axis = JOINTS["j7"]
+
+    part = _joint_plug("j6")
+    neck, waypoint = _radial_neck(j6_center, j6_axis, j7_center, length=NECK_LENGTH)
+    radial = _unit(_v_sub(waypoint, _v_sub(j6_center, _v_scale(j6_axis, FLANGE_THICKNESS / 2.0))))
+    clear_of_stack = _v_add(
+        _v_add(j6_center, _v_scale(j6_axis, POT_HOLDER_BACK_X + BEAM_RADIUS + 1.0)),
+        _v_scale(radial, NECK_LENGTH),
+    )
+    socket_neck, socket_waypoint = _socket_neck(j7_center, j7_axis, j6_center)
+    part = part.union(neck)
+    for piece in _beam_path_pieces((waypoint, clear_of_stack, socket_waypoint)):
+        part = part.union(piece)
+    part = part.union(socket_neck)
+    part = part.union(_joint_socket("j7"))
+    part = part.cut(_joint_stop_groove("j6"))
     # Fixed palm grip is integral with link 6.  The separate gripper lever
     # pivots beside it.  The lever's integral PETG leaf bears on the small post
     # below, returning the gripper to its released/deadman-off position.
@@ -869,6 +1093,75 @@ def build_link_6() -> cq.Workplane:
         2.0,
     )
     part = part.union(spring_post).union(spring_post_root)
+    return part.clean()
+
+
+def build_link_5() -> cq.Workplane:
+    """Reach J6's socket through the one sector its moving link cannot enter.
+
+    J5 and the gripper both sit on the same side of J6, and J6 turns 240
+    degrees, so its moving link sweeps every radial direction except a 120
+    degree sector opposite that side.  A straight beam from J5 into the J6
+    socket lands squarely inside that sweep and the wrist locks up.  This link
+    therefore drops behind the moving flange plane, where the child has no
+    material at all, and enters the socket from the free sector -- the same
+    move the base pedestal makes to reach J1 through link 1's sweep.
+    """
+
+    j5_center, j5_axis = JOINTS["j5"]
+    j6_center, j6_axis = JOINTS["j6"]
+
+    toward_j5 = _v_sub(j5_center, j6_center)
+    radial = _unit(
+        _v_sub(toward_j5, _v_scale(j6_axis, _dot(toward_j5, j6_axis)))
+    )
+    entry = _v_scale(radial, -1.0)
+
+    # The descent runs in a plane behind the moving flange, with room for the
+    # beam's own radius; the child link starts at the flange and never reaches
+    # back past it.
+    setback = FLANGE_THICKNESS + BEAM_RADIUS + 2.0
+    neck_direction = _unit(
+        _v_sub(
+            _v_sub(j6_center, j5_center),
+            _v_scale(j5_axis, _dot(_v_sub(j6_center, j5_center), j5_axis)),
+        )
+    )
+    neck_length = _dot(
+        _v_sub(_v_sub(j6_center, _v_scale(j6_axis, setback)), j5_center),
+        neck_direction,
+    )
+    if neck_length < 1.0:
+        raise RuntimeError(
+            "J5 sits inside J6's flange setback at this LEADER_SCALE; link 5 "
+            "has nowhere to route"
+        )
+
+    socket_neck, socket_waypoint = _socket_neck(
+        j6_center, j6_axis, _v_add(j6_center, entry)
+    )
+    turn = _v_add(
+        _v_add(j6_center, _v_scale(entry, NECK_LENGTH)),
+        _v_scale(j6_axis, -setback),
+    )
+
+    part = _joint_plug("j5")
+    # The setback keeps this neck short enough that its beam starts inside the
+    # stop groove's radius, so the neck stands off the flange far enough to
+    # keep solid material under the groove.
+    neck, waypoint = _radial_neck(
+        j5_center,
+        j5_axis,
+        j6_center,
+        length=neck_length,
+        depth=FLANGE_THICKNESS + BEAM_RADIUS,
+    )
+    part = part.union(neck)
+    for piece in _beam_path_pieces((waypoint, turn, socket_waypoint)):
+        part = part.union(piece)
+    part = part.union(socket_neck)
+    part = part.union(_joint_socket("j6"))
+    part = part.cut(_joint_stop_groove("j5"))
     return part.clean()
 
 
@@ -1009,7 +1302,7 @@ def build_parts() -> Dict[str, cq.Workplane]:
         "simple_link_2": _link("j2", "j3"),
         "simple_link_3": build_link_3(),
         "simple_link_4": _link("j4", "j5"),
-        "simple_link_5": _link("j5", "j6"),
+        "simple_link_5": build_link_5(),
         "simple_link_6": build_link_6(),
         "simple_gripper_lever": build_gripper_lever(),
     }

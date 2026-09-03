@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from build_simple_leader import (
     CONTROLLER_TRAY_CENTER,
+    JOINT_LIMITS_DEG,
     JOINTS,
     NANO_SHIELD_BOARD_THICKNESS,
     NANO_SHIELD_LONG,
@@ -356,14 +357,17 @@ def render_fold_check(output_path: Path) -> None:
     parts_by_name = build_parts()
     parts = [parts_by_name[name] for name in PART_ORDER]
     folded = {
-        "j2": -105.0,
-        "j3": 105.0,
-        "j4": -90.0,
-        "j5": -90.0,
-        "j6": -120.0,
-        "j7": 45.0,
+        "j2": JOINT_LIMITS_DEG["j2"][0],
+        "j3": JOINT_LIMITS_DEG["j3"][1],
+        "j4": JOINT_LIMITS_DEG["j4"][0],
+        "j5": JOINT_LIMITS_DEG["j5"][0],
+        "j6": JOINT_LIMITS_DEG["j6"][0],
+        "j7": JOINT_LIMITS_DEG["j7"][1],
     }
-    poses = (("Neutral", parts), ("Compact folded pose", _posed_parts(parts, folded)))
+    poses = (
+        ("Neutral (the build pose)", parts),
+        ("Folded to the printed stops", _posed_parts(parts, folded)),
+    )
     figure = plt.figure(figsize=(12.0, 7.2), dpi=180, facecolor="white")
     for panel, (title, posed) in enumerate(poses, start=1):
         axis = figure.add_subplot(1, 2, panel, projection="3d", proj_type="ortho")
@@ -386,7 +390,13 @@ def render_fold_check(output_path: Path) -> None:
     figure.text(
         0.5,
         0.015,
-        "Fold shown at J2 −105°, J3 +105°, J4 −90°, J5 −90°, J6 −120°, gripper closed.",
+        "Fold shown at "
+        + ", ".join(
+            f"{name.upper()} {angle:+.0f}°".replace("-", "−")
+            for name, angle in sorted(folded.items())
+            if name != "j7"
+        )
+        + ", gripper closed.",
         ha="center",
         fontsize=10.5,
         color="#374151",

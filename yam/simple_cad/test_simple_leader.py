@@ -2,9 +2,10 @@ import math
 from itertools import product
 
 import pytest
+
 from build_simple_leader import (
     AXLE_DIAMETER,
-    BASE_LIMITED_RANGE_DEG,
+    BASE_PLATE_THICKNESS,
     BEARING_ID,
     BEARING_OD,
     BEARING_POCKET_DEPTH,
@@ -19,6 +20,7 @@ from build_simple_leader import (
     JUMPER_PACK_COUNT,
     JUMPER_PACK_WIRES,
     LEADER_COUNT,
+    LEADER_SCALE,
     NANO_SHIELD_BOARD_THICKNESS,
     NANO_SHIELD_LONG,
     NANO_SHIELD_SHORT,
@@ -28,11 +30,16 @@ from build_simple_leader import (
     POT_BUSHING_CLEARANCE,
     POT_BUSHING_DIAMETER,
     POT_LEAD_LENGTH,
+    POT_MOUNT_SIGN,
     POT_SHAFT_DIAMETER,
     POT_SHAFT_SOCKET_DIAMETER,
+    POT_USABLE_TRAVEL_DEG,
+    SELF_COLLISION_LIMIT_DEG,
     STOP_ANGULAR_CLEARANCE,
     STOP_PIN_RADIUS,
     STOP_RADIUS,
+    YAM_BUILD_POSE_DEG,
+    YAM_URDF_CHAIN,
     _box,
     _intersection_volume,
     _v_add,
@@ -42,10 +49,12 @@ from build_simple_leader import (
     cable_runs,
     controller_electronics_keepout,
     extension_channels,
+    fold_is_permitted,
+    follower_travel_lost_deg,
     stop_limited_range,
     stop_pin_half_angle,
-    usable_range,
     validate_parts,
+    yam_chain,
 )
 
 # The pot's carrier and the gripper's return leaf are the only two places where
@@ -71,7 +80,7 @@ def _sweep_range(joint):
         # Past its closed stop the gripper is loading its own flexure, which is
         # not a rigid-body question.
         return JOINT_LIMITS_DEG[joint]
-    return usable_range(joint)
+    return stop_limited_range(joint)
 
 
 def _posed(angles):
@@ -134,6 +143,65 @@ def _assert_pose_is_clear(angles):
             f"controller electronics and {PART_ORDER[index]} interfere by "
             f"{overlap:.3f} mm^3 at {angles}"
         )
+
+
+def test_leader_is_a_uniformly_scaled_yam():
+    """Every mapped segment is the follower's own, times one factor.
+
+    This is the property joint-space teleoperation actually needs: identical
+    joint angles put the operator's hand where the follower's gripper is, only
+    scaled about the base.  A per-segment fudge keeps the angles legal and
+    quietly destroys that, so compare against the URDF rather than against a
+    remembered set of link lengths.
+    """
+
+    reference = yam_chain(1.0)
+    scaled = yam_chain(LEADER_SCALE)
+    mapped = [name for name, _, _, _, _ in YAM_URDF_CHAIN]
+    assert [entry[0] for entry in reference] == mapped + ["j7"]
+
+    for (name, full, full_axis), (_, small, small_axis) in zip(reference, scaled):
+        if name == "j7":
+            continue  # the leader's own lever, not a follower joint
+        for axis_index in range(3):
+            assert small[axis_index] == pytest.approx(
+                full[axis_index] * LEADER_SCALE, abs=1e-6
+            )
+        assert small_axis == full_axis
+
+    for index in range(1, len(mapped)):
+        previous, current = reference[index - 1][1], reference[index][1]
+        separation = math.dist(current, previous)
+        leader = math.dist(scaled[index][1], scaled[index - 1][1])
+        assert leader == pytest.approx(separation * LEADER_SCALE, abs=1e-6)
+
+
+def test_printed_stops_come_from_the_follower_limits():
+    """Each stop is the follower's own travel seen from the build pose."""
+
+    for name, _, _, _, (lower, upper) in YAM_URDF_CHAIN:
+        build = YAM_BUILD_POSE_DEG[name]
+        wanted = (lower - build, upper - build)
+        if POT_MOUNT_SIGN.get(name, 1.0) < 0.0:
+            wanted = (-wanted[1], -wanted[0])
+        have = JOINT_LIMITS_DEG[name]
+        # A stop may only ever be tighter than the follower joint it protects.
+        assert have[0] >= wanted[0] - 1e-9 and have[1] <= wanted[1] + 1e-9
+        assert have[1] - have[0] <= POT_USABLE_TRAVEL_DEG + 1e-9
+
+    # Everything the leader gives up, in one place: J1 needs more travel than
+    # one potentiometer measures, and the elbow stops short of the fold where
+    # the printed forearm reaches the upper arm.
+    assert follower_travel_lost_deg() == {"j1": (40.0, 10.0), "j3": (16.0, 0.0)}
+
+
+def test_elbow_stop_is_where_the_arm_stops_clearing_itself():
+    """The blocked elbow travel is measured, not assumed."""
+
+    lower = stop_limited_range("j3")[0]
+    _assert_pose_is_clear({"j3": lower})
+    with pytest.raises(AssertionError):
+        _assert_pose_is_clear({"j3": lower - 10.0})
 
 
 def test_complete_print_manifest_is_eight_structural_parts():
@@ -210,6 +278,11 @@ def test_full_chain_is_collision_free_through_each_joint_range(joint):
         # wrist to confirm the pedestal stays clear of a curled hand.
         {"j1": 140.0, "j4": 90.0, "j5": 90.0, "j6": 120.0},
         {"j1": -140.0, "j4": 90.0, "j5": -90.0, "j6": -120.0},
+        # The shoulder and elbow at their folded stops, which is where the
+        # follower's own workspace runs the forearm back past the upper arm.
+        {"j2": -90.0, "j3": -74.0},
+        {"j2": 120.0, "j3": -60.0},
+        {"j2": 20.0, "j3": -74.0},
     ],
 )
 def test_wrist_poses_keep_every_part_clear(pose):
@@ -219,7 +292,7 @@ def test_wrist_poses_keep_every_part_clear(pose):
 
 
 def test_j2_reaches_its_full_printed_stop_without_hitting_the_base():
-    assert "j2" not in BASE_LIMITED_RANGE_DEG
+    assert "j2" not in SELF_COLLISION_LIMIT_DEG
     lower, upper = stop_limited_range("j2")
     assert lower < JOINT_LIMITS_DEG["j2"][0]
     assert upper > JOINT_LIMITS_DEG["j2"][1]
@@ -274,16 +347,39 @@ def test_all_nominal_wrist_corner_folds_are_clear():
 
 def test_compact_fold_is_clear_across_the_base_yaw_range():
     folded = {
-        "j2": -105.0,
-        "j3": 105.0,
-        "j4": -90.0,
-        "j5": -90.0,
-        "j6": -120.0,
-        "j7": 45.0,
+        "j2": JOINT_LIMITS_DEG["j2"][0],
+        "j3": JOINT_LIMITS_DEG["j3"][1],
+        "j4": JOINT_LIMITS_DEG["j4"][0],
+        "j5": JOINT_LIMITS_DEG["j5"][0],
+        "j6": JOINT_LIMITS_DEG["j6"][0],
+        "j7": JOINT_LIMITS_DEG["j7"][1],
     }
     j1_lower, j1_upper = stop_limited_range("j1")
     for j1 in (j1_lower, -70.0, 0.0, 70.0, j1_upper):
         _assert_pose_is_clear({"j1": j1, **folded})
+
+
+def test_shoulder_and_elbow_fold_together_inside_the_documented_envelope():
+    """Sweep the two joints that can reach the base together.
+
+    Printed stops act on one joint at a time, so this pair needs a stated
+    operating envelope as well.  The grid checks that the envelope is honest in
+    both directions: everything inside it is clear, and the corner it excludes
+    really does collide rather than being excluded out of caution.
+    """
+
+    j2_lower, j2_upper = stop_limited_range("j2")
+    j3_lower, j3_upper = stop_limited_range("j3")
+    j2_samples = (j2_lower, -45.0, 0.0, 20.0, 45.0, 75.0, j2_upper)
+    j3_samples = (j3_lower, -60.0, -30.0, 0.0, 45.0, j3_upper)
+    for j2, j3 in product(j2_samples, j3_samples):
+        if not fold_is_permitted(j2, j3):
+            continue
+        _assert_pose_is_clear({"j2": j2, "j3": j3})
+
+    assert not fold_is_permitted(j2_upper, j3_lower)
+    with pytest.raises(AssertionError):
+        _assert_pose_is_clear({"j2": j2_upper, "j3": j3_lower})
 
 
 def test_gripper_flexure_engages_between_open_and_closed_stops():
@@ -309,17 +405,17 @@ def test_every_channel_fits_the_documented_cable_budget():
     assert {joint: int(run["extension_count"]) for joint, run in runs.items()} == {
         "j1": 0,
         "j2": 1,
-        "j3": 1,
+        "j3": 2,
         "j4": 2,
-        "j5": 2,
+        "j5": 3,
         "j6": 3,
-        "j7": 3,
+        "j7": 4,
     }
     assert set(extension_channels()) == {"j2", "j3", "j4", "j5", "j6", "j7"}
     wires_used = int(
         sum(run["extension_count"] for run in runs.values()) * 3 * LEADER_COUNT
     )
-    assert wires_used == 72
+    assert wires_used == 90
     assert wires_used <= JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
 
     def wires_for_two_leaders(factory_lead_mm):
@@ -334,13 +430,15 @@ def test_every_channel_fits_the_documented_cable_budget():
         )
         return segments * 3 * LEADER_COUNT
 
-    assert wires_for_two_leaders(148.0) == 78
-    assert wires_for_two_leaders(148.0) <= JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
-    assert wires_for_two_leaders(147.0) > JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
+    # Three ribbons cover the modeled 200 mm lead with 30 spare wires, and they
+    # still cover the shortest pigtail this pot is plausibly shipped with, so
+    # the BOM does not depend on an unstated seller specification.
+    assert wires_for_two_leaders(100.0) == 102
+    assert wires_for_two_leaders(100.0) <= JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
 
 
 def test_base_pedestal_carries_the_arm_through_a_real_section():
-    """The governing section is between the flange sweep and the socket.
+    """The governing section is the column between the plate and the socket.
 
     The original pair of 6 mm columns met the socket through two small stub
     lenses and offered about 77 mm^2 there.  Anything near that is a base that
@@ -349,6 +447,7 @@ def test_base_pedestal_carries_the_arm_through_a_real_section():
 
     base = build_base()
     thickness = 0.5
-    slab = _box(400.0, 400.0, thickness, (0.0, 0.0, 38.0))
+    height = (BASE_PLATE_THICKNESS + JOINTS["j1"][0][2]) / 2.0
+    slab = _box(400.0, 400.0, thickness, (0.0, 0.0, height))
     area = base.intersect(slab).val().Volume() / thickness
     assert area > 350.0
