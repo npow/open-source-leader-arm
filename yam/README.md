@@ -38,13 +38,15 @@ listing does not specify its lead length. If all fourteen pots need extensions,
 they require **42 wires**. Two ribbons provide 80, cover either case, and cost
 only $0.32 more than one.
 
-The conservative listed-item subtotal is now **$18.80** before shipping, tax,
-or payment fees. To finish below **$50 after 8.625% San Francisco sales tax**,
-the complete checkout before tax must be **$46.03 or less**, leaving **$27.23**
-for shipping and fees. Alibaba did not expose final freight without completing
-the variant and account/CAPTCHA steps, so this is a checkout target rather than
-a promised delivered price. Do not buy if the selected variants do not match
-the `Required selection` column.
+A cart containing exactly the quantities above showed a **$17.94 item
+subtotal**, **−$0.60 item discount**, **$26.16 shipping**, and **−$11.16
+shipping discount**. That is **$32.34 before tax and import charges**. Applying
+8.625% San Francisco sales tax to the entire subtotal gives a conservative
+estimate of **$35.13**, leaving **$14.87** for any import or additional checkout
+charges before reaching $50. Alibaba says the exact import charge appears at
+checkout, so the final charged total—not this estimate—is the deciding number.
+Do not buy if the selected variants do not match the `Required selection`
+column.
 
 The pots, Nanos, and shields come from the same TZT supplier, which may help
 with combined shipping. The bearings and ribbons come from two other suppliers.
@@ -52,7 +54,7 @@ Prices, stock, shipping, tax, and delivery dates can change at checkout.
 
 You also need about **1 kg of PETG**, **two USB-C data cables**, and optionally
 eight #8 or 4 mm wood screws or two table clamps. Those are not included in the
-$18.80 online-parts subtotal.
+$32.34 cart subtotal.
 
 ### Why the shield listing says UNO
 
