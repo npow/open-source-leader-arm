@@ -193,11 +193,7 @@ def test_full_chain_is_collision_free_through_each_joint_range(joint):
     ],
 )
 def test_wrist_poses_keep_every_part_clear(pose):
-    """Whole-arm folds are not checked; a serial arm can always hit itself.
-
-    What has to hold is that no single joint, and no wrist combination, runs
-    into anything from the neutral pose -- that is assembly step 8.
-    """
+    """Selected useful wrist poses are clear; this is not an exhaustive grid."""
 
     _assert_pose_is_clear(pose)
 
@@ -229,13 +225,9 @@ def test_base_blocks_j2_before_its_printed_stop():
 def test_controller_tray_sits_inside_the_wrist_envelope():
     """Pin the second place the declared travel is not actually usable.
 
-    The tray on link 3 lies inside the shell link 5 sweeps about J4, so folding
-    the wrist down and across drives link 5 into it -- roughly a quarter of the
-    wrist's travel, and 500 mm^3 deep at worst, not a graze.  Link 3's own beam
-    is clear; it is entirely the tray.  Moving the tray sideways only mirrors
-    the region, because J5 is a yaw axis.  This is recorded rather than fixed
-    because relocating the controller is a mechanical change, not a fit
-    constant.  See the README for the position that does clear it.
+    At the pinned folded pose, link 5 intersects the tray on link 3. This is
+    recorded rather than fixed because relocating the controller is a
+    mechanical change, not a fit constant.
     """
 
     posed = _posed({"j4": -90.0, "j5": -90.0, "j6": -120.0})
@@ -254,10 +246,11 @@ def test_gripper_flexure_engages_between_open_and_closed_stops():
 
 
 def test_every_channel_fits_the_documented_cable_budget():
-    """The pots ship with fixed 200 mm leads; the chain is about 400 mm long.
+    """The modeled pot leads are 200 mm; the chain is about 400 mm long.
 
-    No tray position makes both ends reach, so the budget has to be stated and
-    checked rather than asserted in a comment.
+    The seller does not specify actual lead length, so README instructions tell
+    builders to measure delivered parts and the model checks its stated
+    assumption rather than presenting it as a sourced product fact.
     """
 
     runs = cable_runs()

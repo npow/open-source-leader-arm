@@ -45,17 +45,12 @@ POT_BUSHING_CLEARANCE = 0.35
 POT_SHAFT_SOCKET_DIAMETER = 5.85
 NANO_SHIELD_EDGE_CLEARANCE = 0.60
 
-# Controller placement and factory cable budget.  The tray sits on link 3 so
-# every lead runs toward the middle of the chain, but the sourced potentiometers
-# ship with fixed 200 mm leads and the chain is roughly 400 mm long.  No tray
-# position makes the outer channels reach, so extensions are part of the BOM and
-# ``validate_cable_reach`` enforces the budget instead of asserting it in prose.
-# The tray sits inside the shell link 5 sweeps about J4, so folding the wrist
-# down and across drives link 5 into it.  Moving it to the other side only
-# mirrors the problem, because J5 is a yaw axis and the envelope is symmetric.
-# (130.0, 0.0, 225.0) -- outboard, in the arm's own plane -- does clear the whole
-# wrist grid and still fits the cable budget, but it is a mechanical change with
-# its own unvalidated standoffs, so it is recorded rather than adopted here.
+# Controller placement and assumed cable budget.  The seller does not specify
+# the factory lead length, so 200 mm is a modeling assumption to verify against
+# the delivered parts.  The chain is roughly 400 mm long; extensions are part
+# of the BOM and ``validate_cable_reach`` enforces the modeled budget.
+# The current tray intersects link 5 in a known folded wrist pose; the
+# regression test records that unresolved mechanical constraint.
 CONTROLLER_TRAY_CENTER = (30.0, 45.0, 225.0)
 CONTROLLER_PART_INDEX = 3  # simple_link_3 carries the shield tray
 POT_LEAD_LENGTH = 200.0
@@ -1042,7 +1037,7 @@ def main() -> None:
         export_parts(parts, args.output_dir)
         print(f"Exported {len(parts)} structural parts plus joint_fit_test to {args.output_dir}")
     needs = extension_channels()
-    print("Cable budget (factory lead is " f"{POT_LEAD_LENGTH:.0f} mm):")
+    print("Cable budget (assumed factory lead is " f"{POT_LEAD_LENGTH:.0f} mm):")
     for joint, run in cable_runs().items():
         flag = " EXTENSION" if run["needs_extension"] else ""
         print(
