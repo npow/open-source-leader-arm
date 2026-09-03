@@ -405,17 +405,17 @@ def test_every_channel_fits_the_documented_cable_budget():
     assert {joint: int(run["extension_count"]) for joint, run in runs.items()} == {
         "j1": 0,
         "j2": 1,
-        "j3": 2,
+        "j3": 1,
         "j4": 2,
         "j5": 3,
         "j6": 3,
-        "j7": 4,
+        "j7": 3,
     }
     assert set(extension_channels()) == {"j2", "j3", "j4", "j5", "j6", "j7"}
     wires_used = int(
         sum(run["extension_count"] for run in runs.values()) * 3 * LEADER_COUNT
     )
-    assert wires_used == 90
+    assert wires_used == 78
     assert wires_used <= JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
 
     def wires_for_two_leaders(factory_lead_mm):
@@ -430,10 +430,12 @@ def test_every_channel_fits_the_documented_cable_budget():
         )
         return segments * 3 * LEADER_COUNT
 
-    # Three ribbons cover the modeled 200 mm lead with 30 spare wires, and they
-    # still cover the shortest pigtail this pot is plausibly shipped with, so
-    # the BOM does not depend on an unstated seller specification.
-    assert wires_for_two_leaders(100.0) == 102
+    # Two ribbons would cover the modeled 200 mm lead, but only just, and the
+    # seller does not state the lead length.  The third ribbon is what makes the
+    # budget hold at the shortest pigtail this pot plausibly ships with.
+    assert wires_for_two_leaders(180.0) == 78
+    assert wires_for_two_leaders(160.0) > 2 * JUMPER_PACK_WIRES
+    assert wires_for_two_leaders(100.0) == 96
     assert wires_for_two_leaders(100.0) <= JUMPER_PACK_COUNT * JUMPER_PACK_WIRES
 
 

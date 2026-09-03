@@ -33,14 +33,28 @@ through link 1's sweep; J5 faces up so link 5 has a corridor down to J6.
 
 ### How small can it go?
 
-`LEADER_SCALE` was searched downward against this suite. At 0.75 every part is a
-valid single solid and all 34 tests pass. Below about 0.66 the folded arm starts
-hitting the base plate and the controller envelope, which are sized by purchased
-parts and do not shrink with the arm. Between those, the wrist link's boolean
-construction is unreliable at some scales: J5 and J6 are 40 mm apart at 0.75
-while a 25 mm neck and a 35 mm pot carrier have to fit between them, and the
-routing degenerates. Going smaller is a joint-hardware change, not a parameter
-change.
+`LEADER_SCALE` was searched downward against this suite:
+
+| Scale | Result |
+| ---: | --- |
+| 0.75 | passes |
+| 0.70 | collisions all clear, but `simple_link_5` is not a valid single solid |
+| 0.68 | passes — shipped |
+| 0.67 | passes |
+| 0.66 | the folded forearm reaches the base plate |
+
+0.66 is the first real collision, so 0.68 ships with a step of margin rather
+than 0.67. Below 0.66 the base plate and Nano shield stop shrinking with the arm
+and then the joints themselves run out of room.
+
+**The model is not valid at every scale in between.** `simple_link_5` fails the
+valid-solid check at 0.70 and 0.74 while passing at 0.68 and 0.75. The cause is
+near-tangency, not packing: at those spacings the descent beam leaves J5 on a
+short radial neck that puts its surface about a millimetre from the snap axle
+and straddling `STOP_GROOVE_OUTER_RADIUS`, and the union drops a segment rather
+than fusing it. If you change `LEADER_SCALE`, run the suite — and if link 5
+fails, route it out of J5 along the joint axis first, where nothing is nearby,
+instead of on that neck.
 
 ## Generate and test
 

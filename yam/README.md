@@ -10,7 +10,7 @@ the nominal CAD, selected motion sweeps, and a documented cable-length model;
 they do not prove printer fit, strength, cable clearance, or a collision-free
 workspace. Print and pull-test the coupon before committing to the full arm.
 
-## It is the YAM at 0.75 scale
+## It is the YAM at 0.68 scale
 
 The arm is a **uniformly scaled copy** of the follower, generated from
 [`yam.urdf`](https://github.com/i2rt-robotics/i2rt/blob/main/i2rt/robot_models/arm/yam/v1/yam.urdf)
@@ -20,27 +20,35 @@ Identical angles put your hand where the follower's gripper is *only* if every
 segment carries the same scale factor. Scale the segments individually and the
 angles stay legal while the correspondence you are steering by disappears.
 
-| Segment | YAM | Leader at 0.75 |
+| Segment | YAM | Leader at 0.68 |
 | --- | ---: | ---: |
-| Base to J1 | 68.0 mm | 51.0 mm |
-| J1 to J2 (shoulder offset) | 60.2 mm | 45.1 mm |
-| J2 to J3 (upper arm) | 272.8 mm | 204.6 mm |
-| J3 to J4 (forearm) | 261.5 mm | 196.1 mm |
-| J4 to J5 | 90.9 mm | 68.2 mm |
-| J5 to J6 | 53.9 mm | 40.4 mm |
+| Base to J1 | 68.0 mm | 46.2 mm |
+| J1 to J2 (shoulder offset) | 60.2 mm | 40.9 mm |
+| J2 to J3 (upper arm) | 272.8 mm | 185.5 mm |
+| J3 to J4 (forearm) | 261.5 mm | 177.8 mm |
+| J4 to J5 | 90.9 mm | 61.8 mm |
+| J5 to J6 | 53.9 mm | 36.7 mm |
 
 The follower's lateral shoulder and elbow offsets are reproduced too, so the
 forearm folds past the upper arm the way the real arm's does. Built, the leader
-reaches about 347 mm forward and stands about 359 mm tall.
+reaches about 321 mm forward and stands about 326 mm tall.
 
-**0.75 is a hardware floor, not a preference.** GELLO scales a UR5 by 0.2–0.3,
-but its joint is a 24 mm servo and the UR5's wrist offsets are 95 and 82 mm.
-YAM's J5-to-J6 offset is only 53.9 mm, and a joint here is a 26 mm bearing plus
-a 17 mm potentiometer body whose shaft and cradle need 35 mm behind the
-bearing. At 0.75 those joints are 40 mm apart and the wrist only packs at all
-because J5's sensor faces away from the wrist and link 5 reaches J6's bearing
-from behind. Going meaningfully smaller needs different joint hardware — a
-smaller bearing with a 9 mm pot, or the AS5600 encoders the parent repo uses.
+**Why not smaller?** GELLO scales a UR5 by 0.2–0.3, so this arm is noticeably
+larger than a GELLO. The reason is the joints, not the choice of factor: a
+GELLO joint is a 24 mm servo and the UR5's wrist offsets are 95 and 82 mm,
+while YAM's J5-to-J6 offset is only 53.9 mm and a joint here is a 26 mm bearing
+plus a 17 mm potentiometer body whose shaft and cradle need 35 mm behind that
+bearing. At 0.68 those two joints are 36.7 mm apart, and the wrist only packs at
+all because J5's sensor faces away from it and link 5 reaches J6's bearing from
+behind.
+
+0.68 was found by running the CAD collision suite down the scale rather than
+chosen: 0.67 still passes, 0.66 puts the folded forearm into the base plate, so
+0.68 keeps one step of margin over a real collision. Below that, the base plate
+and the Nano shield do not shrink with the arm, and then the joints themselves
+run out of room. Getting to GELLO's proportions means different joint hardware —
+a smaller bearing with a 9 mm pot, or the AS5600 encoders the parent repo uses —
+not a smaller number here.
 
 Only two of the leader's own dimensions are not scaled, and neither is a mapped
 joint: the gripper lever pivots 72 mm out from the wrist roll axis rather than
@@ -70,11 +78,13 @@ were checked on **September 3, 2026**.
 jumper wires joined side by side; it is not forty three-wire cables. This arm is
 a full-size scaled YAM, so its cable runs are much longer than a compact leader's:
 with the controller fixed at the base and the CAD's 200 mm pot-lead assumption,
-one arm uses fifteen three-wire extension segments, or **45 individual jumper
-wires**. Two arms use 90; three ribbons provide 120. Some channels use four
-30 cm segments chained end to end. The pot listing does not state the pigtail
-length, and three ribbons cover it even if the delivered leads are as short as
-100 mm, so the BOM no longer depends on that unstated specification.
+one arm uses thirteen three-wire extension segments, or **39 individual jumper
+wires**. Two arms use 78; three ribbons provide 120. Some channels use three
+30 cm segments chained end to end. Two ribbons would just cover that — but only
+if the delivered pigtails really are 200 mm, and the pot listing does not state
+the length. At 160 mm the arm needs 84 wires and two ribbons fall short. The
+third ribbon is what keeps the BOM from depending on an unstated specification;
+it covers leads as short as 100 mm.
 
 An earlier cart, with **two** ribbons rather than three, showed a **$17.94 item
 subtotal**, **−$0.60 item discount**, **$26.16 shipping**, and **−$11.16
@@ -83,16 +93,17 @@ ribbon adds one more ribbon's price to that, and shipping discounts change with
 cart contents, so re-read the total at checkout rather than trusting the figure
 above. Applying the current
 [8.625% San Francisco sales-tax rate](https://www.cdtfa.ca.gov/taxes-and-fees/rates.aspx)
-to the old subtotal gave **$35.13**; the third ribbon leaves the order still well
+to the old subtotal gave **$35.13**; one more ribbon leaves the order still well
 under $50, but Alibaba only shows the exact import charge at checkout, so use
 the final charged total as the deciding number.
 
 Also have one **1 kg spool of PETG**, **two USB-C data cables**, and either eight
 #8 (about 4 mm) wood screws or two table clamps. Keep small reusable cable ties
 or electrical tape for strain relief. The CAD's total solid volume is about
-327 cm³ per leader — the scaled arm is larger than the compact prototype it
-replaced — so a 1 kg spool still covers both leaders plus the coupon and
-supports at the infill below.
+313 cm³ per leader — the scaled arm is larger than the compact prototype it
+replaced, mostly in the base block and the two long links. At the walls and
+infill below a 1 kg spool should cover both leaders, the coupon, and supports,
+but slice first and check the estimate before ordering only one spool.
 
 ## Print
 
@@ -132,13 +143,19 @@ follower — and do not drill out a load-bearing axle.
 
 | Part | Footprint as exported |
 | --- | --- |
-| `simple_link_2` (upper arm) | 35 × 232 mm |
-| `simple_link_3` (forearm) | 218 × 79 mm |
+| `simple_link_2` (upper arm) | 35 × 214 mm |
+| `simple_link_3` (forearm) | 201 × 75 mm |
 | `simple_base` | 149 × 90 mm |
 
-Everything else is under 110 mm. A 250 mm bed takes every part square on. A
-220 mm bed takes the two long links only rotated onto the diagonal; a 180 mm
-bed cannot print them at all.
+Everything else is under 110 mm. A 220 mm bed takes every part square on, with
+little to spare on the upper arm; a 180 mm bed takes the two long links only
+rotated onto the diagonal.
+
+The exported orientations came from the previous, much shorter arm and were not
+re-chosen for these link lengths: `simple_link_2` in particular exports standing
+95 mm tall on a 35 mm footprint, which slices into a lot of support. Re-orient
+it in your slicer if you prefer — nothing about the part depends on the exported
+pose — but keep the joint faces off the bed.
 
 Editable STEP files are in `simple_cad/generated/step`.
 
@@ -165,10 +182,12 @@ measures the angle; it is not the axle. No screws or glue belong in a joint.
 
 ### 2. Center and install the seven pots
 
-The printed stops are no longer symmetric: each one is the follower's own
-travel for that joint, seen from the leader's build pose. Centre the pot on the
-middle of the *printed* travel, which is what the instructions below do, and the
-host configuration handles the rest.
+The printed stops are no longer symmetric: each one is the follower's own travel
+for that joint, seen from the leader's build pose. Centre the pot on the middle
+of the *printed* travel, which is what the instructions below do, and then set
+the host offsets from
+[the table further down](#run-the-follower-software) — a centred pot no longer
+means the middle of the follower's range on the shoulder and elbow.
 
 Do one joint at a time:
 
@@ -263,12 +282,12 @@ shield barrel jack or an external servo supply.
 The pot seller does **not** specify the factory lead length. The CAD uses a
 200 mm assumption, so measure the actual leads when they arrive.
 
-- At 200 mm, J1 reaches directly; J2 uses one 30 cm three-wire segment; J3 and
-  J4 use two; J5 and J6 use three; J7 uses four chained end to end.
-- That consumes 45 individual jumper wires per leader and 90 for two leaders.
-  Peel the ribbon into groups of three and join male to female where a second,
-  third, or fourth segment is required.
-- Three 40-wire ribbons provide 120 wires, leaving 30 spare under that
+- At 200 mm, J1 reaches directly; J2 and J3 use one 30 cm three-wire segment;
+  J4 uses two; J5, J6, and J7 use three chained end to end.
+- That consumes 39 individual jumper wires per leader and 78 for two leaders.
+  Peel the ribbon into groups of three and join male to female where a second or
+  third segment is required.
+- Three 40-wire ribbons provide 120 wires, leaving 42 spare under that
   assumption. They still cover the arm if the delivered pigtails turn out to be
   as short as 100 mm, so this does not hinge on the unstated lead length.
 
@@ -283,12 +302,12 @@ it apart.
 | Channel | Centerline route | Moving joints crossed | Total lead needed | 30 cm jumper segments at 200 mm |
 | --- | ---: | ---: | ---: | ---: |
 | J1 | 61 mm | 0 | 96 mm | 0 |
-| J2 | 143 mm | 1 | 234 mm | 1 |
-| J3 | 334 mm | 2 | 507 mm | 2 |
-| J4 | 512 mm | 3 | 765 mm | 2 |
-| J5 | 608 mm | 4 | 919 mm | 3 |
-| J6 | 655 mm | 5 | 1014 mm | 3 |
-| J7 | 707 mm | 6 | 1114 mm | 4 |
+| J2 | 137 mm | 1 | 226 mm | 1 |
+| J3 | 308 mm | 2 | 475 mm | 1 |
+| J4 | 468 mm | 3 | 710 mm | 2 |
+| J5 | 558 mm | 4 | 857 mm | 3 |
+| J6 | 601 mm | 5 | 946 mm | 3 |
+| J7 | 653 mm | 6 | 1046 mm | 3 |
 
 The centerline route follows each intervening joint rather than cutting
 straight through space. The total then adds 25% routing allowance, a 35 mm
@@ -333,13 +352,28 @@ python experiments/launch_yaml.py \
   --left-config-path configs/yam_encoder_sim.yaml
 ```
 
-The configuration maps each pot's centred reading to the middle of that YAM
-joint's own travel. Because the leader is a scaled copy, the mapping is now one
-degree of leader for one degree of follower on every axis — no per-joint gain.
-Three joints do need a **`joint_signs` entry of −1**: J1, J5, and J7 have their
-potentiometers mounted facing the other way, which is what buys the pedestal and
-the wrist their clearance. If any other joint moves backward, fix it in
-`joint_signs` too; do not swap wires while powered. Use
+**Those configs need updating for this arm, and this branch does not update
+them.** They were written for a leader whose stops were symmetric, so they map
+each centred pot to the middle of the matching YAM joint's range. That is no
+longer where a centred pot sits: the stops are now the follower's own limits
+seen from the build pose, which is asymmetric on the shoulder and elbow. Set
+each joint's offset so a centred pot reads the follower angle below, and set
+`joint_signs` to −1 on the two joints whose potentiometers face the other way.
+
+| Joint | Follower angle at a centred pot | `joint_signs` |
+| --- | ---: | ---: |
+| J1 base yaw | 0° | −1 |
+| J2 shoulder | 105° | +1 |
+| J3 elbow | 98° | +1 |
+| J4 wrist pitch | −3.5° | +1 |
+| J5 wrist yaw | 0° | −1 |
+| J6 wrist roll | 0° | +1 |
+
+The −1 on J1 and J5 is not a wiring mistake: their potentiometers are mounted
+facing the other way, which is what buys the pedestal and the wrist their
+clearance. Everything else is one degree of leader per degree of follower, with
+no per-joint gain — that is what the uniform scale is for. If a joint still
+moves backward, fix it in `joint_signs`; do not swap wires while powered. Use
 `configs/yam_encoder_hw.yaml` only after directions, limits, disconnect
 behavior, rate limits, and the gripper deadman all work in simulation.
 

@@ -131,7 +131,7 @@ YAM_URDF_GRIPPER_ORIGIN: Vector3 = (-0.0240, 0.0, -0.0567)
 # is a 26 mm bearing plus a 17 mm potentiometer body, so the printed joints
 # collide before the arm gets much smaller.  ``test_leader_is_a_uniformly_
 # scaled_yam`` and the collision suite are what actually hold this bound.
-LEADER_SCALE = 0.75
+LEADER_SCALE = 0.68
 
 # Every joint angle here is a multiple of 90 degrees, which keeps all six axes
 # on world axes -- the socket orientation code only builds cardinal joints --
